@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>EMBA 2027 — Admissions Tracker</title>
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#0B1220" />
+<meta name="theme-color" content="#0f1117" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="EMBA 2027" />
@@ -28,63 +28,72 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ---------- Theme ----------
    Dark is the default. Light is applied by setting data-theme="light" on
    <html>. Every colour in the app comes from these variables — if you add a
    rule with a literal hex in it, it will break one of the two themes. */
+/* The palette is SpendWise's "Classic" scheme, lifted token-for-token from
+   that app: deep blue-navy dark, cool blue-grey light, teal accent. */
 :root, :root[data-theme="dark"]{
-  --ink:#0B1220;        /* page background        */
-  --ink-2:#131C2B;      /* cards, raised surfaces */
-  --ink-3:#1C2739;      /* inputs, hover, chips   */
-  --line:#28344A;       /* borders, rules         */
-  --paper:#E8EAED;      /* primary text           */
-  --muted:#8A97AC;      /* secondary text         */
-  --gold:#C8922A;       /* accent: brand, active  */
-  --gold-lo:#3A2E14;
-  --red:#E0574A;        /* overdue / urgent       */
-  --red-lo:#3A1A17;
-  --amber:#D9A441;      /* due soon               */
-  --amber-lo:#382C13;
-  --green:#4FA97E;      /* done / confirmed       */
-  --green-lo:#122E22;
-  --blue:#5B8DBE;       /* links                  */
-  --header-bg:rgba(11,18,32,.92);
-  --on-accent:#0B1220;  /* text on a filled accent */
-  --urgent:#5A2B26;     /* urgent card border      */
-  --banner-ink:#E8D6AC;
+  --ink:#0f1117;        /* page background        */
+  --ink-2:#161b25;      /* cards, raised surfaces */
+  --ink-3:#1c2333;      /* inputs, hover, chips   */
+  --line:#252d3d;       /* borders, rules         */
+  --paper:#e8edf5;      /* primary text           */
+  --muted:#7d8fa8;      /* secondary text         */
+  --accent:#14b8a6;     /* accent: brand, active  */
+  --accent-lo:rgba(20,184,166,.10);
+  --red:#f87171;        /* overdue / urgent       */
+  --red-lo:rgba(248,113,113,.12);
+  --amber:#fbbf24;      /* due soon               */
+  --amber-lo:rgba(251,191,36,.10);
+  --green:#4ade80;      /* done / confirmed       */
+  --green-lo:rgba(74,222,128,.10);
+  --blue:#60a5fa;       /* links                  */
+  --header-bg:rgba(15,17,23,.92);
+  --on-accent:#0f1117;  /* text on a filled accent */
+  --urgent:rgba(248,113,113,.38); /* urgent card border */
+  --banner-ink:#ecdba6;
   --shadow:rgba(0,0,0,.5);
+  /* Two-layer shadow: a tight contact line plus a soft wide bloom. Cards
+     float on it instead of relying on borders alone. */
+  --lift:0 1px 3px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.25);
   --r:10px;
 }
 :root[data-theme="light"]{
-  --ink:#F6F4EF;
-  --ink-2:#FFFFFF;
-  --ink-3:#ECE8E0;
-  --line:#DED7C9;
-  --paper:#14192A;
-  --muted:#66708A;
-  --gold:#8A6212;
-  --gold-lo:#F7EEDA;
-  --red:#B3261E;
-  --red-lo:#FBE9E7;
-  --amber:#8F6100;
-  --amber-lo:#FBF1DA;
-  --green:#1C7A52;
-  --green-lo:#E2F1EA;
-  --blue:#215F96;
-  --header-bg:rgba(246,244,239,.92);
-  --on-accent:#FFFFFF;
-  --urgent:#E0A9A2;
-  --banner-ink:#5A4415;
-  --shadow:rgba(20,25,42,.16);
+  --ink:#f0f4f8;
+  --ink-2:#ffffff;
+  --ink-3:#edf0f5;
+  --line:#dde3ec;
+  --paper:#1a2232;
+  --muted:#5a6a80;
+  --accent:#0d9488;
+  --accent-lo:rgba(13,148,136,.10);
+  --red:#ef4444;
+  --red-lo:rgba(239,68,68,.10);
+  --amber:#d97706;
+  --amber-lo:rgba(217,119,6,.10);
+  --green:#16a34a;
+  --green-lo:rgba(22,163,74,.10);
+  --blue:#3b82f6;
+  --header-bg:rgba(240,244,248,.92);
+  --on-accent:#ffffff;
+  --urgent:rgba(239,68,68,.38);
+  --banner-ink:#7a5208;
+  --shadow:rgba(0,0,0,.14);
+  --lift:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{color-scheme:dark}
 html[data-theme="light"]{color-scheme:light}
 html,body{background:var(--ink);color:var(--paper);}
 body{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  /* Serif for running text is the SpendWise signature — almost no app does
+     it, and it is most of why that app feels the way it does. Palatino is a
+     system font on every platform, so there is nothing extra to download. */
+  font-family:'Book Antiqua','Palatino Linotype',Palatino,Georgia,serif;
   font-size:15px;line-height:1.5;
   -webkit-font-smoothing:antialiased;
   padding-bottom:env(safe-area-inset-bottom);
@@ -93,7 +102,7 @@ body{
 .display{font-family:'Fraunces',Georgia,serif;}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 a{color:var(--blue)}
-:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ---------- Shell ---------- */
@@ -104,10 +113,10 @@ header{
 }
 .hwrap{max-width:1240px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px}
 .brand{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-.brand span{color:var(--gold)}
-.ver{font-size:10px;color:var(--muted);letter-spacing:.02em;padding:2px 6px;border:1px solid var(--line);border-radius:6px;white-space:nowrap;opacity:.7}
-.ver:hover{opacity:1;color:var(--gold)}
-.sync{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.brand span{color:var(--accent)}
+.ver{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.02em;padding:2px 6px;border:1px solid var(--line);border-radius:6px;white-space:nowrap;opacity:.7}
+.ver:hover{opacity:1;color:var(--accent)}
+.sync{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
 .dot.off{background:var(--muted)}
 .spacer{flex:1}
@@ -121,7 +130,7 @@ header{
   font-size:16px;line-height:1;border:1px solid var(--line);
   border-radius:10px;color:var(--muted);
 }
-.iconbtn:hover{color:var(--gold);border-color:var(--muted)}
+.iconbtn:hover{color:var(--accent);border-color:var(--muted)}
 .iconbtn:active{background:var(--ink-3)}
 
 /* Toggle switch — used in Settings for the same theme control. */
@@ -139,50 +148,48 @@ header{
    touch target past 44px without changing what you see. Rows are 73px
    apart, so neighbouring switches never overlap. */
 .switch::before{content:'';position:absolute;inset:-9px -6px}
-.switch.on{background:var(--gold);border-color:var(--gold)}
+.switch.on{background:var(--accent);border-color:var(--accent)}
 .switch.on::after{transform:translateX(22px);background:var(--on-accent)}
 
 /* ---------- Bottom tab bar ----------
    Thumb-reachable navigation, which is the whole reason it is down here
    rather than under the header: on a tall phone the top of the screen is
-   the hardest place to reach. Same bar at every width, just centred and
-   given a little more room on a desktop. */
+   the hardest place to reach. A floating pill detached from the screen
+   edge at every width — SpendWise-style — rather than an edge-to-edge
+   bar; it grows a little wider on desktop but keeps the same shape. */
 nav{
-  position:fixed;left:0;right:0;bottom:0;z-index:30;
-  display:flex;gap:2px;
-  padding:6px 8px calc(6px + env(safe-area-inset-bottom));
-  background:var(--header-bg);backdrop-filter:blur(12px);
-  border-top:1px solid var(--line);
+  position:fixed;left:50%;transform:translateX(-50%);z-index:30;
+  bottom:calc(12px + env(safe-area-inset-bottom));
+  width:min(560px,calc(100% - 24px));
+  display:flex;gap:1px;
+  padding:5px 6px;
+  background:var(--ink-2);border:1px solid var(--line);border-radius:36px;
+  box-shadow:var(--lift);
 }
 .tab{
   flex:1;min-width:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-  padding:7px 2px;border-radius:12px;
-  font-size:10.5px;font-weight:500;color:var(--muted);
-  transition:color .15s ease,background .15s ease;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:7px 2px;border-radius:28px;
+  font-size:8.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);
+  /* The overshoot easing gives the active pill a little spring. */
+  transition:color .18s cubic-bezier(.34,1.56,.64,1),background .18s cubic-bezier(.34,1.56,.64,1);
 }
 .tab svg{
-  width:22px;height:22px;flex-shrink:0;
+  width:21px;height:21px;flex-shrink:0;
   fill:none;stroke:currentColor;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round;
 }
 .tab span{overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
-.tab.on{color:var(--gold);background:var(--gold-lo)}
+.tab.on{color:var(--accent);background:var(--accent-lo)}
 .tab:active{opacity:.65}
-
 @media(min-width:641px){
-  nav{
-    left:50%;right:auto;transform:translateX(-50%);
-    width:min(620px,calc(100% - 32px));
-    margin-bottom:16px;border:1px solid var(--line);border-radius:18px;
-    box-shadow:0 8px 28px var(--shadow);
-  }
-  .tab{font-size:11.5px}
+  .tab{font-size:9.5px}
   .tab:hover{color:var(--paper)}
 }
 
 /* Clear the bar so the last row of content is never trapped under it. */
-main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-inset-bottom))}
+main{max-width:1240px;margin:0 auto;padding:24px 20px calc(104px + env(safe-area-inset-bottom))}
 .panel{display:none}
 .panel.on{display:block}
 
@@ -190,6 +197,7 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-
 .hero{
   border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:24px;
   background:linear-gradient(180deg,var(--ink-2),var(--ink));
+  box-shadow:var(--lift);
 }
 .hero-top{padding:20px 22px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end}
 .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.11em;color:var(--muted)}
@@ -208,7 +216,7 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-
    without anyone having to parse four separate figures. */
 .statfill{
   position:absolute;left:0;top:0;bottom:0;width:0;
-  background:var(--gold-lo);transition:width .45s cubic-bezier(.4,0,.2,1);
+  background:var(--accent-lo);transition:width .45s cubic-bezier(.4,0,.2,1);
 }
 .statfill.green{background:var(--green-lo)}
 .statfill.red{background:var(--red-lo)}
@@ -218,19 +226,20 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-
 
 /* ---------- Progress ---------- */
 .pwrap{height:5px;background:var(--ink-3);border-radius:3px;overflow:hidden}
-.pbar{height:100%;background:var(--gold);border-radius:3px;transition:width .3s ease}
+.pbar{height:100%;background:var(--accent);border-radius:3px;transition:width .3s ease}
 .pbar.done{background:var(--green)}
 
 /* ---------- Section ---------- */
 .sechead{display:flex;align-items:baseline;gap:12px;margin:28px 0 12px}
 .sechead h2{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:-.01em}
-.sechead .c{font-size:12px;color:var(--muted)}
+.sechead .c{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
 .sechead:first-child{margin-top:0}
 
 /* ---------- Cards ---------- */
 .grid{display:grid;gap:12px}
 .card{
   border:1px solid var(--line);border-radius:12px;background:var(--ink-2);overflow:hidden;
+  box-shadow:var(--lift);
 }
 .card.urgent{border-color:var(--urgent)}
 .chead{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;user-select:none}
@@ -269,14 +278,16 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-
 .w-Green{background:var(--green-lo);color:var(--green)}
 .w-Amber{background:var(--amber-lo);color:var(--amber)}
 .w-Red{background:var(--red-lo);color:var(--red)}
-.flag{background:var(--gold-lo);color:var(--gold);font-size:11px;padding:6px 9px;border-radius:6px;margin:8px 0;display:block;line-height:1.5}
+/* Flags and the estimates banner are warnings, so they stay amber — the
+   teal accent is for brand and active states, not caution. */
+.flag{background:var(--amber-lo);color:var(--amber);font-size:11px;padding:6px 9px;border-radius:6px;margin:8px 0;display:block;line-height:1.5}
 .est{color:var(--muted);font-weight:400}
 .est::before{content:'~';margin-right:1px;opacity:.7}
 .banner{
-  border:1px solid var(--gold);background:var(--gold-lo);border-radius:10px;
+  border:1px solid var(--amber);background:var(--amber-lo);border-radius:10px;
   padding:12px 14px;margin-bottom:18px;font-size:12.5px;line-height:1.6;color:var(--banner-ink);
 }
-.banner b{color:var(--gold)}
+.banner b{color:var(--amber)}
 
 /* ---------- Tasks ---------- */
 .task{display:flex;align-items:flex-start;gap:11px;padding:8px 0;font-size:14px}
@@ -286,7 +297,7 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-
   flex-shrink:0;margin-top:1px;display:grid;place-items:center;
   transition:all .15s;background:transparent;
 }
-.cb:hover{border-color:var(--gold)}
+.cb:hover{border-color:var(--accent)}
 .cb.on{background:var(--green);border-color:var(--green)}
 .cb.on::after{content:'✓';color:var(--on-accent);font-size:12px;font-weight:700;line-height:1}
 .tlabel{flex:1;min-width:0;line-height:1.45}
@@ -307,7 +318,7 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-
   width:100%;margin-top:8px;background:var(--ink-3);border:1px solid var(--line);border-radius:8px;
   color:var(--paper);font:inherit;font-size:13px;padding:9px 11px;min-height:56px;resize:vertical;
 }
-.notes:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.notes:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .noteslabel{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block;margin-top:12px}
 
 /* ---------- Deadline edit ---------- */
@@ -320,7 +331,7 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-
 .editlink{font-size:11px;color:var(--blue);margin-left:8px;text-decoration:underline;text-underline-offset:2px}
 
 /* ---------- Table ---------- */
-.tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch}
+.tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch;box-shadow:var(--lift)}
 table{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
 th{
   background:var(--ink-3);padding:10px 13px;text-align:left;font-size:10px;
@@ -351,7 +362,7 @@ th.num{text-align:right}
   font-size:13px;font-weight:500;padding:11px 15px;min-height:44px;flex-shrink:0;
   border:1px solid var(--line);border-radius:10px;color:var(--paper);background:var(--ink-3);
 }
-.setbtn:hover{border-color:var(--gold);color:var(--gold)}
+.setbtn:hover{border-color:var(--accent);color:var(--accent)}
 .setbtn:active{opacity:.7}
 .setnote{font-size:11.5px;color:var(--muted);line-height:1.6;padding:0 0 14px}
 
@@ -361,7 +372,7 @@ th.num{text-align:right}
   border:1px solid var(--line);border-radius:10px;background:var(--ink-3);
   padding:0 11px;min-height:44px;
 }
-.fxbox:focus-within{border-color:var(--gold)}
+.fxbox:focus-within{border-color:var(--accent)}
 .fxsym,.fxper{font-size:13px;color:var(--muted);flex-shrink:0}
 .fxbox input{
   width:88px;background:none;border:none;color:var(--paper);
@@ -525,7 +536,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.8.0';
+const APP_VERSION = 'v1.10.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -740,7 +751,7 @@ function applyTheme(mode) {
   }
   // Keep the Android status bar in step with the app.
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', isLight ? '#F6F4EF' : '#0B1220');
+  if (meta) meta.setAttribute('content', isLight ? '#f0f4f8' : '#0f1117');
   // The Settings control is labelled "Light mode", so it reads as on when
   // light is the active theme.
   const sw = $('#themeSwitch');
@@ -1375,7 +1386,7 @@ function renderSteps() {
           <div class="chead" onclick="__card('${s.id}',this)">
             <div class="caret">▶</div>
             <div style="min-width:0">
-              <div class="cname"><span class="mono" style="color:var(--gold);margin-right:8px">${s.num}</span>${esc(s.name)}</div>
+              <div class="cname"><span class="mono" style="color:var(--accent);margin-right:8px">${s.num}</span>${esc(s.name)}</div>
               <div class="cmeta"><span>${esc(s.detail)}</span></div>
             </div>
             <div class="cright">
@@ -1418,7 +1429,7 @@ function renderMoney() {
         ${ranked.map((s, i) => `<tr>
           <td class="num" style="color:var(--muted)">${i + 1}</td>
           <td style="font-weight:500">
-            <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}${s.flag ? ' <span style="color:var(--gold)">⚑</span>' : ''}</div>
+            <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}${s.flag ? ' <span style="color:var(--amber)">⚑</span>' : ''}</div>
           </td>
           <td class="num" style="color:var(--muted)">${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}</td>
           <td class="num">${usd(s.tuitionUsd)}</td>
@@ -1430,7 +1441,7 @@ function renderMoney() {
       FX: EUR 1 ≈ USD 1.08 · GBP 1 ≈ USD 1.27 · CHF 1 ≈ USD 1.12 (late June 2026).
       ${fxRate()
         ? `Naira shown in brackets after each USD figure at ₦${Number(fxRate()).toLocaleString('en-GB')}/$1 — the rate you set in Settings. The “local” column stays in the school’s own currency; its naira equivalent is the one beside it.`
-        : `Set a naira rate in <b style="color:var(--gold)">Settings → Exchange rate</b> to see every figure in naira as well.`}
+        : `Set a naira rate in <b style="color:var(--accent)">Settings → Exchange rate</b> to see every figure in naira as well.`}
       ⚑ marks figures needing direct verification with the school.
     </div>
 
