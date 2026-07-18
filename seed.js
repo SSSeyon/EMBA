@@ -415,7 +415,8 @@ function buildSeed() {
   return {
     seedVersion: SEED_VERSION,
     createdAt: new Date().toISOString(),
-    schools: SCHOOLS.map((s) => ({ ...s, tasks: schoolTasks(s.deadline) })),
+    updatedAt: Date.now(),
+    schools: SCHOOLS.map((s) => ({ ...s, notes: '', tasks: schoolTasks(s.deadline) })),
     steps: STEPS.map((s) => ({ ...s, tasks: s.tasks.map((x) => ({ ...x })) })),
     actions: ACTIONS.map((a) => ({ ...a })),
     funding: FUNDING.map((f) => ({ ...f })),

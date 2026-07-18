@@ -10,13 +10,14 @@
    returning devices fetch the new files instead of serving stale ones.
    ---------------------------------------------------------------- */
 
-const CACHE_VERSION = 'emba-v2';
+const CACHE_VERSION = 'emba-v3';
 
 // App shell: local files that make up the tracker itself.
 const SHELL = [
   './',
   './index.html',
   './seed.js',
+  './sync.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

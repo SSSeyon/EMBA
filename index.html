@@ -172,6 +172,26 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
 .tdue.crit{color:var(--red)}
 .tdue.warn{color:var(--amber)}
 .task.done .tdue{color:var(--muted);opacity:.5}
+.tdel{color:var(--muted);font-size:12px;padding:2px 5px;flex-shrink:0;margin-top:1px;border-radius:4px}
+.tdel:hover{color:var(--red);background:var(--red-lo)}
+.addtask{font-size:12px;margin-top:8px;padding:6px 10px}
+
+/* ---------- Notes ---------- */
+.notes{
+  width:100%;margin-top:8px;background:var(--ink-3);border:1px solid var(--line);border-radius:8px;
+  color:var(--paper);font:inherit;font-size:13px;padding:9px 11px;min-height:56px;resize:vertical;
+}
+.notes:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.noteslabel{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block;margin-top:12px}
+
+/* ---------- Deadline edit ---------- */
+.dledit{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 0}
+.dledit input[type=date]{
+  background:var(--ink-3);border:1px solid var(--line);border-radius:6px;color:var(--paper);
+  font:inherit;font-size:13px;padding:5px 8px;
+}
+.dledit label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.editlink{font-size:11px;color:var(--blue);margin-left:8px;text-decoration:underline;text-underline-offset:2px}
 
 /* ---------- Table ---------- */
 .tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch}
@@ -220,6 +240,8 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
       <div class="sync"><div class="dot" id="dot"></div><span id="syncTxt">On this device</span></div>
       <div class="spacer"></div>
       <button class="ghost" id="notify">Remind me</button>
+      <button class="ghost" id="calendar">Calendar</button>
+      <button class="ghost" id="sync">Sync</button>
       <button class="ghost" id="export">Backup</button>
       <button class="ghost" id="importBtn">Restore</button>
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
@@ -245,6 +267,7 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
 <div id="toast"></div>
 
 <script src="seed.js"></script>
+<script type="module" src="sync.js"></script>
 <script>
 /* ================================================================
    Storage — everything lives in this browser's localStorage under
@@ -320,16 +343,107 @@ function loadData() {
   return null;
 }
 
+let applyingRemote = false;
+
 function save() {
   if (!data) return;
+  data.updatedAt = Date.now();
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch (e) {
     console.error('Save failed', e);
-    $('#dot').className = 'dot off';
     toast('Could not save — browser storage is full or blocked');
   }
+  if (window.EmbaSync && !applyingRemote) window.EmbaSync.push(data);
 }
+
+/* Add anything new in seed.js (schools/steps/actions/funding you add later,
+   fields on existing records) to an existing save, without touching ticks,
+   notes, or edited deadlines already there. Runs on every load; cheap no-op
+   once nothing's missing. */
+function migrate(d) {
+  let changed = false;
+  const seed = buildSeed();
+
+  (d.schools || []).forEach((s) => {
+    if (s.notes === undefined) { s.notes = ''; changed = true; }
+  });
+
+  ['schools', 'steps', 'actions'].forEach((key) => {
+    d[key] = d[key] || [];
+    const have = new Set(d[key].map((x) => x.id));
+    (seed[key] || []).forEach((item) => {
+      if (!have.has(item.id)) { d[key].push(item); changed = true; }
+    });
+  });
+
+  d.funding = d.funding || [];
+  const haveFunding = new Set(d.funding.map((f) => f.name));
+  (seed.funding || []).forEach((f) => {
+    if (!haveFunding.has(f.name)) { d.funding.push(f); changed = true; }
+  });
+
+  if (d.seedVersion !== SEED_VERSION) { d.seedVersion = SEED_VERSION; changed = true; }
+  return changed;
+}
+
+const SYNC_CODE_KEY = 'emba-sync-code';
+
+function setSyncStatus(kind) {
+  const dot = $('#dot'), txt = $('#syncTxt');
+  if (kind === 'synced')        { dot.className = 'dot';     txt.textContent = 'Synced'; }
+  else if (kind === 'connecting') { dot.className = 'dot';   txt.textContent = 'Syncing…'; }
+  else if (kind === 'error')    { dot.className = 'dot off'; txt.textContent = 'Sync error'; }
+  else if (kind === 'unconfigured') { dot.className = 'dot off'; txt.textContent = 'Sync not set up'; }
+  else                           { dot.className = 'dot';     txt.textContent = 'On this device'; }
+}
+
+function handleRemote(remote) {
+  if (!remote || applyingRemote) return;
+  if (!data || (remote.updatedAt || 0) > (data.updatedAt || 0)) {
+    applyingRemote = true;
+    data = remote;
+    if (migrate(data)) { /* saved locally below */ }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
+    render();
+    applyingRemote = false;
+  }
+}
+
+function waitForSync(cb, tries = 0) {
+  if (window.EmbaSync) cb();
+  else if (tries < 50) setTimeout(() => waitForSync(cb, tries + 1), 100);
+}
+
+async function connectSync(code, opts = {}) {
+  if (!window.EmbaSync || !window.EmbaSync.available()) {
+    if (!opts.silent) toast('Sync is not set up yet — see README');
+    setSyncStatus('unconfigured');
+    return;
+  }
+  setSyncStatus('connecting');
+  await window.EmbaSync.connect(code, { onRemote: handleRemote, onStatus: setSyncStatus });
+}
+
+$('#sync').addEventListener('click', async () => {
+  const existing = localStorage.getItem(SYNC_CODE_KEY) || '';
+  const code = prompt(
+    'Enter a private sync code shared by all your devices (any phrase).\nLeave blank to stop syncing this device.',
+    existing
+  );
+  if (code === null) return;
+  if (!code.trim()) {
+    localStorage.removeItem(SYNC_CODE_KEY);
+    window.EmbaSync?.disconnect();
+    setSyncStatus('off');
+    toast('Sync turned off for this device');
+    return;
+  }
+  localStorage.setItem(SYNC_CODE_KEY, code.trim());
+  await connectSync(code.trim());
+  if (data) save();
+  toast('Synced this device — enter the same code on your others');
+});
 
 function start() {
   data = loadData();
@@ -337,8 +451,14 @@ function start() {
     data = buildSeed();
     save();
     toast('Tracker set up with your 18 schools');
+  } else if (migrate(data)) {
+    save();
   }
   render();
+
+  const savedCode = localStorage.getItem(SYNC_CODE_KEY);
+  if (savedCode) waitForSync(() => connectSync(savedCode, { silent: true }));
+  else setSyncStatus('off');
 }
 
 /* ---------------- Backup / restore ---------------- */
@@ -375,6 +495,63 @@ $('#importFile').addEventListener('change', async (e) => {
   }
 });
 
+/* ---------------- Notes (per school) ---------------- */
+$('#p-schools').addEventListener('change', (e) => {
+  if (!e.target.classList.contains('notes')) return;
+  const s = (data.schools || []).find(x => x.id === e.target.dataset.id);
+  if (!s) return;
+  s.notes = e.target.value;
+  save();
+});
+
+/* ---------------- Calendar export ---------------- */
+const icsEsc = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+const toICSDate = (iso) => iso.replace(/-/g, '');
+
+function buildICS() {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//EMBA Tracker//EN', 'CALSCALE:GREGORIAN'];
+
+  (data.schools || []).forEach(s => {
+    if (!s.deadline || pct(s.tasks) === 100) return;
+    lines.push(
+      'BEGIN:VEVENT',
+      'UID:school-' + s.id + '@emba-tracker',
+      'DTSTAMP:' + stamp,
+      'DTSTART;VALUE=DATE:' + toICSDate(s.deadline),
+      'SUMMARY:' + icsEsc((s.estimated ? '[Estimated] ' : '') + s.name + ' — application deadline'),
+      'DESCRIPTION:' + icsEsc(s.deadlineNote || ''),
+      'END:VEVENT'
+    );
+  });
+
+  (data.actions || []).forEach(t => {
+    if (t.done || !t.due) return;
+    lines.push(
+      'BEGIN:VEVENT',
+      'UID:action-' + t.id + '@emba-tracker',
+      'DTSTAMP:' + stamp,
+      'DTSTART;VALUE=DATE:' + toICSDate(t.due),
+      'SUMMARY:' + icsEsc(t.label),
+      'END:VEVENT'
+    );
+  });
+
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+$('#calendar').addEventListener('click', () => {
+  if (!data) return;
+  const blob = new Blob([buildICS()], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'emba-deadlines.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Calendar file downloaded — import it into your phone calendar');
+});
+
 /* ---------------- Toggle a task ---------------- */
 window.__toggle = (scope, containerId, taskId) => {
   if (!data) return;
@@ -391,6 +568,58 @@ window.__toggle = (scope, containerId, taskId) => {
   task.done = !task.done;
   render();
   save();
+};
+
+/* ---------------- Custom tasks ---------------- */
+function taskArrFor(scope, containerId) {
+  if (scope === 'actions') return data.actions;
+  const parent = (data[scope] || []).find(x => x.id === containerId);
+  return parent ? parent.tasks : null;
+}
+
+window.__addTask = (scope, containerId) => {
+  if (!data) return;
+  const label = prompt('Task description:');
+  if (!label || !label.trim()) return;
+  const due = prompt('Due date as YYYY-MM-DD (leave blank for none):');
+  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due.trim())) { toast('Date must look like 2026-09-30 — task not added'); return; }
+  const arr = taskArrFor(scope, containerId);
+  if (!arr) return;
+  arr.push({ id: 'custom-' + Date.now(), label: label.trim(), due: due ? due.trim() : null, done: false, custom: true });
+  render();
+  save();
+};
+
+window.__delTask = (scope, containerId, taskId) => {
+  if (!data) return;
+  if (!confirm('Delete this task?')) return;
+  const arr = taskArrFor(scope, containerId);
+  if (!arr) return;
+  const idx = arr.findIndex(t => t.id === taskId);
+  if (idx > -1) arr.splice(idx, 1);
+  render();
+  save();
+};
+
+/* ---------------- Deadline editing ---------------- */
+const editingDL = new Set();
+window.__editDL = (id) => {
+  editingDL.has(id) ? editingDL.delete(id) : editingDL.add(id);
+  renderSchools();
+};
+window.__saveDL = (id) => {
+  const s = (data.schools || []).find(x => x.id === id);
+  if (!s) return;
+  const dateVal = $('#dl-date-' + id).value;
+  const confirmed = $('#dl-conf-' + id).checked;
+  if (dateVal) s.deadline = dateVal;
+  s.estimated = !confirmed;
+  const submitTask = (s.tasks || []).find(t => t.id === 'submit');
+  if (submitTask && dateVal) submitTask.due = dateVal;
+  editingDL.delete(id);
+  render();
+  save();
+  toast('Deadline updated');
 };
 
 /* ---------------- Tabs ---------------- */
@@ -423,6 +652,7 @@ function taskRow(scope, containerId, t) {
               onclick="__toggle('${scope}','${containerId}','${t.id}')"></button>
       <div class="tlabel">${esc(t.label)}</div>
       ${t.due ? `<div class="tdue ${cls}">${dueText(n)}</div>` : ''}
+      ${t.custom ? `<button class="tdel" title="Delete task" aria-label="Delete: ${esc(t.label)}" onclick="__delTask('${scope}','${containerId}','${t.id}')">✕</button>` : ''}
     </div>`;
 }
 
@@ -563,7 +793,15 @@ function renderSchools() {
           </div>
           <div class="cbody">
             <div class="cinfo">
-              <b>Deadline:</b> ${fmtDate(s.deadline)} ${s.estimated ? '<span class="est">(estimated)</span>' : '<span style="color:var(--green)">(confirmed)</span>'} — ${esc(s.deadlineNote || '')}<br>
+              <b>Deadline:</b> ${fmtDate(s.deadline)} ${s.estimated ? '<span class="est">(estimated)</span>' : '<span style="color:var(--green)">(confirmed)</span>'} — ${esc(s.deadlineNote || '')}
+              <button class="editlink" onclick="__editDL('${s.id}')">${editingDL.has(s.id) ? 'cancel' : 'edit'}</button><br>
+              ${editingDL.has(s.id) ? `
+                <div class="dledit">
+                  <input type="date" id="dl-date-${s.id}" value="${s.deadline || ''}">
+                  <label><input type="checkbox" id="dl-conf-${s.id}" ${s.estimated ? '' : 'checked'}> This date is confirmed</label>
+                  <button class="ghost addtask" onclick="__saveDL('${s.id}')">Save</button>
+                </div>
+              ` : ''}
               <b>Starts:</b> ${esc(s.start)} · ${esc(s.duration)}<br>
               <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} (${usd(s.tuitionUsd)}) · <b>All-in:</b> ${usd(s.totalUsd)}<br>
               <b>Waiver:</b> ${esc(s.waiverNote)}<br>
@@ -572,6 +810,9 @@ function renderSchools() {
             </div>
             ${s.flag ? `<div class="flag">⚑ ${esc(s.flag)}</div>` : ''}
             ${(s.tasks || []).map(t => taskRow('schools', s.id, t)).join('')}
+            <button class="ghost addtask" onclick="__addTask('schools','${s.id}')">+ Add task</button>
+            <label class="noteslabel" for="notes-${s.id}">Notes</label>
+            <textarea class="notes" id="notes-${s.id}" data-id="${s.id}" placeholder="Contacts, interview notes, anything worth remembering…">${esc(s.notes || '')}</textarea>
           </div>
         </div>`;
       }).join('')}
@@ -618,6 +859,7 @@ function renderActions() {
     <div class="sechead"><h2>My actions</h2><span class="c">${open} outstanding</span></div>
     <div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
       ${acts.map(t => taskRow('actions', '', t)).join('')}
+      <button class="ghost addtask" onclick="__addTask('actions','')">+ Add task</button>
     </div></div>`;
 }
 
