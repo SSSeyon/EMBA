@@ -348,6 +348,69 @@ th.num{text-align:right}
 .logo-sm{width:22px;height:22px;border-radius:5px}
 .tname{display:flex;align-items:center;gap:9px;min-width:0}
 
+/* ---------- Chips ----------
+   SpendWise-style outlined pills, used for the task filter, the this-week
+   window and the compare picker. Active = accent tint, like the nav. */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.chip{
+  padding:6px 12px;min-height:32px;border-radius:20px;border:1px solid var(--line);
+  font-size:11px;font-weight:600;color:var(--muted);background:transparent;
+  transition:.13s;
+}
+.chip.on{border-color:var(--accent);background:var(--accent-lo);color:var(--accent)}
+.chip:active{opacity:.7}
+
+/* Search box for the task filter. */
+.qbox{
+  display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+  border-radius:10px;background:var(--ink-2);padding:0 12px;margin-bottom:10px;
+}
+.qbox:focus-within{border-color:var(--accent)}
+.qbox input{flex:1;min-width:0;background:none;border:none;color:var(--paper);font:inherit;font-size:14px;padding:11px 0}
+.qbox input:focus{outline:none}
+.qbox .qx{color:var(--muted);font-size:13px;padding:6px}
+
+/* ---------- Recommenders ---------- */
+.recrow{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:13px}
+.recrow+.recrow{border-top:1px solid var(--line)}
+.recname{flex:1;min-width:0}
+.recmeta{font-size:11px;color:var(--muted);margin-top:2px}
+/* The status pill is the control: tapping it advances ask → agreed →
+   drafting → submitted and wraps around. */
+.recst{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  padding:5px 10px;min-height:28px;border-radius:20px;border:1px solid var(--line);
+  color:var(--muted);flex-shrink:0;
+}
+.recst.st-agreed{color:var(--blue);border-color:var(--blue)}
+.recst.st-drafting{color:var(--amber);border-color:var(--amber);background:var(--amber-lo)}
+.recst.st-submitted{color:var(--green);border-color:var(--green);background:var(--green-lo)}
+.chase{font-size:11px;color:var(--blue);text-decoration:underline;text-underline-offset:2px;padding:4px 0;flex-shrink:0}
+
+/* ---------- Funding pots ---------- */
+.pots{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.pot{border:1px solid var(--line);border-radius:10px;background:var(--ink-2);padding:10px 12px;box-shadow:var(--lift)}
+.pot:focus-within{border-color:var(--accent)}
+.pot label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:block}
+.pot input{
+  width:100%;background:none;border:none;color:var(--paper);
+  font-family:'IBM Plex Mono',monospace;font-size:15px;padding:6px 0 0;
+  -moz-appearance:textfield;
+}
+.pot input:focus{outline:none}
+.pot input::-webkit-outer-spin-button,.pot input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.gap-ok{color:var(--green);font-weight:600}
+.gap-short{color:var(--red);font-weight:600}
+
+/* ---------- Rounds editor (inside the deadline edit block) ---------- */
+.rline{display:flex;gap:8px;align-items:center;margin:6px 0;flex-basis:100%}
+.dledit input[type=text],.dledit input[type=number]{
+  background:var(--ink-3);border:1px solid var(--line);border-radius:6px;
+  color:var(--paper);font:inherit;font-size:13px;padding:5px 8px;width:72px;
+}
+.rline .rx{color:var(--muted);font-size:12px;padding:4px 7px;border-radius:4px}
+.rline .rx:hover{color:var(--red);background:var(--red-lo)}
+
 /* ---------- Settings ---------- */
 .set{border:1px solid var(--line);border-radius:12px;background:var(--ink-2);padding:4px 16px;margin-bottom:14px}
 .setrow{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
@@ -536,7 +599,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.10.0';
+const APP_VERSION = 'v1.11.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -548,6 +611,15 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 
 function today() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+
+/* Today as YYYY-MM-DD in LOCAL time. toISOString() would convert to UTC
+   first, which west of Greenwich — or at midnight in Lagos — lands on the
+   wrong day. */
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+    '-' + String(d.getDate()).padStart(2, '0');
+}
 
 function daysTo(iso) {
   if (!iso) return null;
@@ -668,6 +740,9 @@ function migrate(d) {
 
   (d.schools || []).forEach((s) => {
     if (s.notes === undefined) { s.notes = ''; changed = true; }
+    if (!Array.isArray(s.recs))   { s.recs = [];   changed = true; }
+    if (!Array.isArray(s.rounds)) { s.rounds = []; changed = true; }
+    if (s.appFeeUsd === undefined) { s.appFeeUsd = null; changed = true; }
   });
 
   ['schools', 'steps', 'actions'].forEach((key) => {
@@ -687,8 +762,43 @@ function migrate(d) {
   if (!d.logos || typeof d.logos !== 'object') { d.logos = {}; changed = true; }
   if (!d.excluded || typeof d.excluded !== 'object') { d.excluded = {}; changed = true; }
   if (!d.fx || typeof d.fx !== 'object') { d.fx = { ngnPerUsd: null }; changed = true; }
+  // Funding pots — the four "how will I pay for it" numbers on the Costs tab.
+  if (!d.pots || typeof d.pots !== 'object') {
+    d.pots = { savings: null, employer: null, scholarship: null, loan: null };
+    changed = true;
+  }
 
   if (d.seedVersion !== SEED_VERSION) { d.seedVersion = SEED_VERSION; changed = true; }
+  return changed;
+}
+
+/* ---------------- Application rounds ----------------
+   A school can carry a list of round dates (R1/R2/R3…). The tracked
+   deadline (s.deadline) always points at the round currently being aimed
+   for. When that date passes and a later round exists, this rolls the
+   tracker forward to it — on load, not mid-session, so a date never jumps
+   while you are looking at it. The missed date is kept in s.rolledFrom so
+   the school card can say so instead of silently moving the goalposts. */
+function sortedRounds(s) {
+  return (s.rounds || []).filter(r => r.date)
+    .slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+function rollRounds(d) {
+  let changed = false;
+  (d.schools || []).forEach(s => {
+    const rs = sortedRounds(s);
+    if (!rs.length || !s.deadline) return;
+    if (daysTo(s.deadline) >= 0) return;              // still live — nothing to do
+    const up = rs.find(r => daysTo(r.date) >= 0);     // next round still open
+    if (!up || up.date <= s.deadline) return;
+    s.rolledFrom = s.deadline;
+    s.deadline = up.date;
+    if (up.label) s.deadlineNote = up.label;
+    const st = (s.tasks || []).find(t => t.id === 'submit');
+    if (st) st.due = up.date;
+    changed = true;
+  });
   return changed;
 }
 
@@ -727,6 +837,9 @@ async function connectSync() {
   }
   setSyncStatus('connecting');
   await window.EmbaSync.connect({ onRemote: handleRemote, onStatus: setSyncStatus });
+  // Give the first remote pull a moment to land, then take the daily
+  // snapshot of whatever the merged truth is (once per day; see below).
+  setTimeout(() => maybeSnapshot(), 6000);
 }
 
 /* ---------------- Theme (dark / light) ----------------
@@ -800,8 +913,11 @@ function start() {
     data = buildSeed();
     save();
     toast('Tracker set up with your 18 schools');
-  } else if (migrate(data)) {
-    save();
+  } else {
+    const migrated = migrate(data);
+    const rolled = rollRounds(data);
+    if (migrated || rolled) save();
+    if (rolled) toast('A missed round rolled forward to the next one — see the school card');
   }
   render();
 
@@ -954,20 +1070,131 @@ window.__editDL = (id) => {
   editingDL.has(id) ? editingDL.delete(id) : editingDL.add(id);
   renderSchools();
 };
-window.__saveDL = (id) => {
+/* Read whatever is currently typed in the rounds editor back into the data,
+   so adding/removing a line doesn't wipe the others on re-render. */
+function harvestRounds(id) {
   const s = (data.schools || []).find(x => x.id === id);
+  const box = $('#rounds-' + id);
+  if (!s || !box) return s;
+  s.rounds = Array.from(box.querySelectorAll('.rline')).map(row => ({
+    label: row.querySelector('.rlab').value.trim(),
+    date:  row.querySelector('.rdate').value || null,
+  })).filter(r => r.label || r.date);
+  return s;
+}
+
+window.__addRound = (id) => {
+  const s = harvestRounds(id);
+  if (!s) return;
+  s.rounds.push({ label: 'R' + (s.rounds.length + 1), date: null });
+  renderSchools();
+};
+
+window.__delRound = (id, i) => {
+  const s = harvestRounds(id);
+  if (!s || !s.rounds[i]) return;
+  s.rounds.splice(i, 1);
+  renderSchools();
+};
+
+window.__saveDL = (id) => {
+  const s = harvestRounds(id);
   if (!s) return;
   const dateVal = $('#dl-date-' + id).value;
   const confirmed = $('#dl-conf-' + id).checked;
+  const feeVal = parseFloat($('#dl-fee-' + id).value);
+  s.appFeeUsd = isFinite(feeVal) && feeVal >= 0 ? feeVal : null;
   if (dateVal) s.deadline = dateVal;
   s.estimated = !confirmed;
+  delete s.rolledFrom;               // an explicit edit resets the missed-round note
+  // If rounds are set, the next upcoming round becomes the tracked deadline —
+  // one source of truth for the runway, the calendar and the submit task.
+  const up = sortedRounds(s).find(r => daysTo(r.date) >= 0);
+  if (up) {
+    s.deadline = up.date;
+    if (up.label) s.deadlineNote = up.label;
+  }
   const submitTask = (s.tasks || []).find(t => t.id === 'submit');
-  if (submitTask && dateVal) submitTask.due = dateVal;
+  if (submitTask && s.deadline) submitTask.due = s.deadline;
   editingDL.delete(id);
   render();
   save();
-  toast('Deadline updated');
+  toast(up ? `Tracking ${up.label || 'next round'} — ${fmtDate(up.date)}` : 'Deadline updated');
 };
+
+/* One tap from the school card once you have verified a date with the
+   admissions office — no need to open the editor just to clear the ~. */
+window.__confirmDL = (id) => {
+  const s = (data.schools || []).find(x => x.id === id);
+  if (!s) return;
+  s.estimated = false;
+  render();
+  save();
+  toast(`${s.name} — deadline confirmed`);
+};
+
+/* ---------------- Recommenders ----------------
+   Stored per school as { id, name, status, chased }. The status pill cycles
+   through the four stages; "chased" records the last nudge so the dashboard
+   can point at the ones going quiet. */
+const REC_STATES = ['ask', 'agreed', 'drafting', 'submitted'];
+const REC_LABELS = { ask: 'to ask', agreed: 'agreed', drafting: 'drafting', submitted: 'submitted' };
+
+window.__addRec = (sid) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  if (!s) return;
+  const name = prompt('Recommender name:');
+  if (!name || !name.trim()) return;
+  s.recs = s.recs || [];
+  s.recs.push({ id: 'rec-' + Date.now(), name: name.trim(), status: 'ask', chased: null });
+  render();
+  save();
+};
+
+window.__recStatus = (sid, rid) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  const r = s && (s.recs || []).find(x => x.id === rid);
+  if (!r) return;
+  r.status = REC_STATES[(REC_STATES.indexOf(r.status) + 1) % REC_STATES.length];
+  render();
+  save();
+};
+
+window.__recChase = (sid, rid) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  const r = s && (s.recs || []).find(x => x.id === rid);
+  if (!r) return;
+  r.chased = todayISO();
+  render();
+  save();
+  toast(`Noted — chased ${r.name} today`);
+};
+
+window.__delRec = (sid, rid) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  if (!s || !confirm('Remove this recommender?')) return;
+  s.recs = (s.recs || []).filter(x => x.id !== rid);
+  render();
+  save();
+};
+
+function recRow(sid, r) {
+  const chasedN = r.chased ? -daysTo(r.chased) : null;   // days since
+  const meta = r.status === 'submitted' ? 'done'
+    : r.chased ? `chased ${chasedN === 0 ? 'today' : chasedN === 1 ? 'yesterday' : chasedN + ' days ago'}`
+    : 'never chased';
+  return `
+    <div class="recrow">
+      <div class="recname">${esc(r.name)}
+        <div class="recmeta">${meta}</div>
+      </div>
+      ${r.status !== 'submitted' ? `<a class="chase" role="button" tabindex="0" onclick="__recChase('${sid}','${r.id}')">chased today</a>` : ''}
+      <button class="recst st-${r.status}" title="Tap to move to the next stage"
+              onclick="__recStatus('${sid}','${r.id}')">${REC_LABELS[r.status]}</button>
+      <button class="tdel" title="Remove recommender" aria-label="Remove ${esc(r.name)}"
+              onclick="__delRec('${sid}','${r.id}')">✕</button>
+    </div>`;
+}
 
 /* ---------------- Tabs ---------------- */
 $$('.tab').forEach(tab => {
@@ -1004,6 +1231,11 @@ function taskRow(scope, containerId, t) {
 }
 
 /* ---------------- Dashboard ---------------- */
+/* Display-only state — none of this syncs; it is how you are looking at the
+   data on this device right now, not the data itself. */
+let uiWin = 7;                     // the due-soon window: 7 or 14 days
+window.__setWin = (n) => { uiWin = n; renderDash(); };
+
 function renderDash() {
   const schools = activeSchools();
   const steps   = data.steps   || [];
@@ -1045,6 +1277,18 @@ function renderDash() {
   const heroCls  = heroDays === null ? '' : (heroDays <= 14 ? 'crit' : heroDays <= 45 ? 'warn' : '');
 
   const estCount = schools.filter(s => s.estimated).length;
+  const confCount = schools.length - estCount;
+
+  // The due-soon list respects the 7/14-day chip; the stat box stays a
+  // fixed 14-day gauge so its meaning never shifts under you.
+  const soonWin = soon.filter(x => x.n <= uiWin);
+
+  // Recommenders not yet submitted, across every active school.
+  const recsPending = [];
+  schools.forEach(s => (s.recs || []).forEach(r => {
+    if (r.status !== 'submitted') recsPending.push({ s, r });
+  }));
+  const recsTotal = schools.reduce((n, s) => n + (s.recs || []).length, 0);
 
   // Fill proportions for the four stat boxes.
   const outstanding = allTasks.filter(t => !t.done).length;
@@ -1053,10 +1297,10 @@ function renderDash() {
 
   $('#p-dash').innerHTML = `
     ${estCount ? `<div class="banner">
-      <b>${estCount} of ${schools.length} deadlines are estimates, not confirmed dates.</b>
-      They were derived from “TBC” and “rolling” entries in your research, so every countdown
-      marked <span class="est" style="color:inherit">like this</span> could be wrong by weeks.
-      Confirm the real dates with each admissions office and correct them here before you plan around them.
+      <b>${confCount} of ${schools.length} deadlines confirmed.</b>
+      The other ${estCount} are estimates marked <span class="est" style="color:inherit">like this</span> and
+      could be wrong by weeks. Check each date with the admissions office, then tap
+      <b>mark confirmed</b> in that school's card to tick it off this count.
     </div>` : ''}
     <div class="hero">
       <div class="hero-top">
@@ -1095,9 +1339,13 @@ function renderDash() {
       </div>
     </div>
 
-    <div class="sechead"><h2>Due in the next 14 days</h2><span class="c">${soon.length} outstanding</span></div>
-    ${soon.length ? `<div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
-      ${soon.map(x => `
+    <div class="sechead"><h2>${uiWin === 7 ? 'Due this week' : 'Due in the next 14 days'}</h2><span class="c">${soonWin.length} outstanding</span></div>
+    <div class="chips">
+      <button class="chip ${uiWin === 7 ? 'on' : ''}" onclick="__setWin(7)">This week</button>
+      <button class="chip ${uiWin === 14 ? 'on' : ''}" onclick="__setWin(14)">14 days</button>
+    </div>
+    ${soonWin.length ? `<div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
+      ${soonWin.map(x => `
         <div class="task">
           <button class="cb" aria-label="Mark done: ${esc(x.label)}"
                   onclick="__toggle('${x.scope}','${x.cid}','${x.t.id}')"></button>
@@ -1106,7 +1354,14 @@ function renderDash() {
           </div>
           <div class="tdue ${dueClass(x.n)}">${dueText(x.n)}</div>
         </div>`).join('')}
-    </div></div>` : `<div class="empty">Nothing due in the next fortnight. Work ahead on Step 5c.</div>`}
+    </div></div>` : `<div class="empty">Nothing due ${uiWin === 7 ? 'this week' : 'in the next fortnight'}. Work ahead on Step 5c.</div>`}
+
+    ${recsTotal ? `
+      <div class="sechead"><h2>Recommenders</h2><span class="c">${recsPending.length ? recsPending.length + ' not yet submitted' : 'all submitted'}</span></div>
+      ${recsPending.length ? `<div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
+        ${recsPending.map(({ s, r }) => recRow(s.id, r).replace('<div class="recmeta">',
+          `<div class="recmeta">${esc(s.name)} · `)).join('')}
+      </div></div>` : `<div class="empty">Every recommender is in. Rare air — enjoy it.</div>`}` : ''}
 
     <div class="sechead"><h2>Deadline runway</h2><span class="c">by submission date</span></div>
     <div class="tscroll"><table>
@@ -1313,19 +1568,69 @@ $('#logoFile').addEventListener('change', async (e) => {
 });
 
 /* ---------------- Schools ---------------- */
+/* Task filter — display-only state, like uiWin above. With ~150 tasks
+   across 18 cards, scrolling stopped being a search strategy. */
+let taskQ = '';                       // free-text match on task labels
+let taskMode = 'all';                 // all | open | overdue
+window.__setTaskMode = (m) => { taskMode = m; renderSchools(); };
+
+function taskMatches(t) {
+  if (taskMode === 'open' && t.done) return false;
+  if (taskMode === 'overdue') {
+    const n = daysTo(t.due);
+    if (t.done || n === null || n >= 0) return false;
+  }
+  if (taskQ && !t.label.toLowerCase().includes(taskQ.toLowerCase())) return false;
+  return true;
+}
+
+/* Re-rendering on every keystroke would steal the caret, so the search box
+   waits for a pause in typing, then re-renders and puts the caret back. */
+let taskQTimer = null;
+document.addEventListener('input', (e) => {
+  if (!e.target || e.target.id !== 'taskQ') return;
+  taskQ = e.target.value;
+  clearTimeout(taskQTimer);
+  taskQTimer = setTimeout(() => {
+    renderSchools();
+    const el = $('#taskQ');
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  }, 300);
+});
+window.__clearTaskQ = () => { taskQ = ''; renderSchools(); };
+
 function renderSchools() {
   const order = { URGENT:0, HIGH:1, AMBER:2, STANDARD:3 };
+  const filtering = !!taskQ || taskMode !== 'all';
   const schools = activeSchools().slice().sort((a, b) =>
     (order[a.priority] - order[b.priority]) || ((daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9)));
   const hidden = (data.schools || []).length - schools.length;
 
+  const matchCount = filtering
+    ? schools.reduce((n, s) => n + (s.tasks || []).filter(taskMatches).length, 0)
+    : 0;
+
   $('#p-schools').innerHTML = `
     <div class="sechead"><h2>${schools.length} school${schools.length === 1 ? '' : 's'}</h2><span class="c">tap a school to open its checklist${hidden ? ` · ${hidden} switched off in Settings` : ''}</span></div>
+    <div class="qbox">
+      <input type="search" id="taskQ" placeholder="Search tasks…" value="${esc(taskQ)}" aria-label="Search tasks">
+      ${taskQ ? `<button class="qx" onclick="__clearTaskQ()" aria-label="Clear search">✕</button>` : ''}
+    </div>
+    <div class="chips">
+      <button class="chip ${taskMode === 'all' ? 'on' : ''}" onclick="__setTaskMode('all')">All tasks</button>
+      <button class="chip ${taskMode === 'open' ? 'on' : ''}" onclick="__setTaskMode('open')">Outstanding</button>
+      <button class="chip ${taskMode === 'overdue' ? 'on' : ''}" onclick="__setTaskMode('overdue')">Overdue</button>
+      ${filtering ? `<span class="chip" style="border-style:dashed">${matchCount} match${matchCount === 1 ? '' : 'es'}</span>` : ''}
+    </div>
     <div class="grid">
       ${schools.map(s => {
         const n = daysTo(s.deadline), p = pct(s.tasks);
+        const tasks = filtering ? (s.tasks || []).filter(taskMatches) : (s.tasks || []);
+        if (filtering && !tasks.length) return '';
+        const isOpen = filtering || openSet.has(s.id);
+        const rs = sortedRounds(s);
         return `
-        <div class="card ${s.priority === 'URGENT' ? 'urgent' : ''} ${openSet.has(s.id) ? 'open' : ''}">
+        <div class="card ${s.priority === 'URGENT' ? 'urgent' : ''} ${isOpen ? 'open' : ''}">
           <div class="chead" onclick="__card('${s.id}',this)">
             <div class="caret">▶</div>
             <img class="logo" data-logo="${s.id}" alt="">
@@ -1345,30 +1650,53 @@ function renderSchools() {
           </div>
           <div class="cbody">
             <div class="cinfo">
-              <b>Deadline:</b> ${fmtDate(s.deadline)} ${s.estimated ? '<span class="est">(estimated)</span>' : '<span style="color:var(--green)">(confirmed)</span>'} — ${esc(s.deadlineNote || '')}
+              <b>Deadline:</b> ${fmtDate(s.deadline)} ${s.estimated
+                ? `<span class="est">(estimated)</span> <button class="editlink" onclick="__confirmDL('${s.id}')">mark confirmed</button>`
+                : '<span style="color:var(--green)">(confirmed)</span>'} — ${esc(s.deadlineNote || '')}
               <button class="editlink" onclick="__editDL('${s.id}')">${editingDL.has(s.id) ? 'cancel' : 'edit'}</button><br>
+              ${s.rolledFrom ? `<span style="color:var(--amber)">Earlier round missed (was ${fmtDate(s.rolledFrom)}) — now tracking the next one.</span><br>` : ''}
+              ${rs.length && !editingDL.has(s.id) ? `<b>Rounds:</b> ${rs.map(r => {
+                const rn = daysTo(r.date);
+                const stat = rn < 0 ? ' (passed)' : (r.date === s.deadline ? ' ← tracking' : '');
+                return `${esc(r.label || '')} ${fmtDate(r.date)}${stat}`;
+              }).join(' · ')}<br>` : ''}
               ${editingDL.has(s.id) ? `
                 <div class="dledit">
                   <input type="date" id="dl-date-${s.id}" value="${s.deadline || ''}">
                   <label><input type="checkbox" id="dl-conf-${s.id}" ${s.estimated ? '' : 'checked'}> This date is confirmed</label>
+                  <label>App fee $ <input type="number" id="dl-fee-${s.id}" min="0" step="any" value="${s.appFeeUsd ?? ''}" placeholder="—" aria-label="Application fee in USD"></label>
+                  <div id="rounds-${s.id}" style="flex-basis:100%">
+                    ${rs.length ? '' : `<div class="recmeta" style="margin:2px 0 4px">Rounds: add each round's date and the tracker follows the next open one automatically.</div>`}
+                    ${(s.rounds || []).map((r, i) => `
+                      <div class="rline">
+                        <input type="text" class="rlab" value="${esc(r.label || '')}" placeholder="R${i + 1}" aria-label="Round name">
+                        <input type="date" class="rdate" value="${r.date || ''}" aria-label="Round date">
+                        <button class="rx" onclick="__delRound('${s.id}',${i})" aria-label="Remove round">✕</button>
+                      </div>`).join('')}
+                  </div>
+                  <button class="editlink" onclick="__addRound('${s.id}')">+ add round</button>
                   <button class="ghost addtask" onclick="__saveDL('${s.id}')">Save</button>
                 </div>
               ` : ''}
               <b>Starts:</b> ${esc(s.start)} · ${esc(s.duration)}<br>
-              <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} · ${usd(s.tuitionUsd)} · <b>All-in:</b> ${usd(s.totalUsd)}<br>
+              <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} · ${usd(s.tuitionUsd)} · <b>All-in:</b> ${usd(s.totalUsd)}${s.appFeeUsd ? ` · <b>App fee:</b> ${usd(s.appFeeUsd)}` : ''}<br>
               <b>Waiver:</b> ${esc(s.waiverNote)}<br>
               <b>Scholarship:</b> ${esc(s.scholarship)}<br>
               <b>Apply for funding:</b> ${esc(s.scholarshipTiming)}
             </div>
             ${s.flag ? `<div class="flag">⚑ ${esc(s.flag)}</div>` : ''}
-            ${(s.tasks || []).map(t => taskRow('schools', s.id, t)).join('')}
-            <button class="ghost addtask" onclick="__addTask('schools','${s.id}')">+ Add task</button>
+            ${tasks.map(t => taskRow('schools', s.id, t)).join('')}
+            ${filtering ? '' : `<button class="ghost addtask" onclick="__addTask('schools','${s.id}')">+ Add task</button>
+            <label class="noteslabel">Recommenders</label>
+            ${(s.recs || []).map(r => recRow(s.id, r)).join('')}
+            <button class="ghost addtask" onclick="__addRec('${s.id}')">+ Add recommender</button>
             <label class="noteslabel" for="notes-${s.id}">Notes</label>
-            <textarea class="notes" id="notes-${s.id}" data-id="${s.id}" placeholder="Contacts, interview notes, anything worth remembering…">${esc(s.notes || '')}</textarea>
+            <textarea class="notes" id="notes-${s.id}" data-id="${s.id}" placeholder="Contacts, interview notes, anything worth remembering…">${esc(s.notes || '')}</textarea>`}
           </div>
         </div>`;
       }).join('')}
-    </div>`;
+    </div>
+    ${filtering && !matchCount ? `<div class="empty">No tasks match. Loosen the filter or clear the search.</div>` : ''}`;
 
   hydrateLogos($('#p-schools'));
 }
@@ -1418,15 +1746,66 @@ function renderActions() {
 }
 
 /* ---------------- Money ---------------- */
+/* Compare picker — display-only state. Up to three schools side by side. */
+const cmpSet = new Set();
+window.__cmp = (id) => {
+  if (cmpSet.has(id)) cmpSet.delete(id);
+  else if (cmpSet.size >= 3) { toast('Three schools at a time — drop one first'); return; }
+  else cmpSet.add(id);
+  renderMoney();
+};
+
+function potsTotal() {
+  const p = (data && data.pots) || {};
+  const vals = ['savings', 'employer', 'scholarship', 'loan'].map(k => Number(p[k]) || 0);
+  return vals.reduce((a, b) => a + b, 0);
+}
+
+/* Pot fields save on 'change' like the FX field — same document-level
+   listener pattern, because the inputs are rebuilt on every render. */
+document.addEventListener('change', (e) => {
+  if (!e.target || !e.target.classList || !e.target.classList.contains('potIn')) return;
+  const v = parseFloat(e.target.value);
+  data.pots = data.pots || {};
+  data.pots[e.target.dataset.pot] = isFinite(v) && v > 0 ? v : null;
+  save();
+  renderMoney();
+});
+
 function renderMoney() {
   const ranked = activeSchools().slice().sort((a, b) => a.totalUsd - b.totalUsd);
   const funding = data.funding || [];
+  const pots = data.pots || {};
+  const funds = potsTotal();
+  const feeSchools = ranked.filter(s => s.appFeeUsd);
+  const feeTotal = feeSchools.reduce((n, s) => n + s.appFeeUsd, 0);
+  const cmp = ranked.filter(s => cmpSet.has(s.id));
+
+  const POTS = [
+    ['savings', 'Savings'], ['employer', 'Employer'],
+    ['scholarship', 'Scholarship (expected)'], ['loan', 'Loan (approved)'],
+  ];
+
   $('#p-money').innerHTML = `
+    <div class="sechead"><h2>Funding plan</h2><span class="c">${funds ? 'total ' + usd(funds) : 'what you can put in'}</span></div>
+    <div class="pots">
+      ${POTS.map(([k, label]) => `
+        <div class="pot">
+          <label for="pot-${k}">${label}</label>
+          <input type="number" class="potIn" id="pot-${k}" data-pot="${k}" min="0" step="any"
+                 inputmode="decimal" placeholder="$0" value="${pots[k] ?? ''}" aria-label="${label} in USD">
+        </div>`).join('')}
+    </div>
+    ${funds ? '' : `<div class="setnote" style="padding:0 0 6px">Fill in what you could raise — savings, employer sponsorship, expected scholarship, approved loan — and every school below gets a Gap column showing how far that stretches.</div>`}
+
     <div class="sechead"><h2>Total cost ranking</h2><span class="c">tuition + fees + living, USD</span></div>
     <div class="tscroll"><table>
-      <thead><tr><th class="num">#</th><th>School</th><th class="num">Tuition (local)</th><th class="num">Tuition (USD)</th><th class="num">All-in (USD)</th></tr></thead>
+      <thead><tr><th class="num">#</th><th>School</th><th class="num">Tuition (local)</th><th class="num">Tuition (USD)</th><th class="num">All-in (USD)</th>${funds ? '<th class="num">Gap</th>' : ''}</tr></thead>
       <tbody>
-        ${ranked.map((s, i) => `<tr>
+        ${ranked.map((s, i) => {
+          const need = s.totalUsd + (s.appFeeUsd || 0);
+          const gap = funds - need;
+          return `<tr>
           <td class="num" style="color:var(--muted)">${i + 1}</td>
           <td style="font-weight:500">
             <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}${s.flag ? ' <span style="color:var(--amber)">⚑</span>' : ''}</div>
@@ -1434,7 +1813,9 @@ function renderMoney() {
           <td class="num" style="color:var(--muted)">${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}</td>
           <td class="num">${usd(s.tuitionUsd)}</td>
           <td class="num" style="font-weight:600">${usd(s.totalUsd)}</td>
-        </tr>`).join('')}
+          ${funds ? `<td class="num ${gap >= 0 ? 'gap-ok' : 'gap-short'}">${gap >= 0 ? 'covered' : '−' + usd(Math.abs(gap))}</td>` : ''}
+        </tr>`;
+        }).join('')}
       </tbody>
     </table></div>
     <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6">
@@ -1443,7 +1824,35 @@ function renderMoney() {
         ? `Naira shown in brackets after each USD figure at ₦${Number(fxRate()).toLocaleString('en-GB')}/$1 — the rate you set in Settings. The “local” column stays in the school’s own currency; its naira equivalent is the one beside it.`
         : `Set a naira rate in <b style="color:var(--accent)">Settings → Exchange rate</b> to see every figure in naira as well.`}
       ⚑ marks figures needing direct verification with the school.
+      ${feeSchools.length
+        ? `Application fees entered so far: <b style="color:var(--paper)">${usd(feeTotal)}</b> across ${feeSchools.length} of ${ranked.length} schools (set each under the school's deadline → edit); fees are counted in the Gap column.`
+        : `No application fees entered yet — each school's edit panel (deadline → edit) has an “App fee” field; eighteen fees are a real cash line worth seeing.`}
     </div>
+
+    <div class="sechead"><h2>Compare</h2><span class="c">pick two or three</span></div>
+    <div class="chips">
+      ${ranked.map(s => `<button class="chip ${cmpSet.has(s.id) ? 'on' : ''}" onclick="__cmp('${s.id}')">${esc(s.name.replace(/ EMBA| GEMBA| Fellows| Global| College/g, '').trim() || s.name)}</button>`).join('')}
+    </div>
+    ${cmp.length >= 2 ? `<div class="tscroll"><table style="min-width:${220 * cmp.length + 130}px">
+      <thead><tr><th></th>${cmp.map(s => `<th>${esc(s.name)}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${[
+          ['Deadline', s => `${fmtDate(s.deadline)}${s.estimated ? ' <span class="est">est</span>' : ''}`],
+          ['Countdown', s => dueText(daysTo(s.deadline))],
+          ['Priority', s => `<span class="pill p-${s.priority}">${s.priority}</span>`],
+          ['Test waiver', s => `<span class="pill w-${s.waiver}">${s.waiver}</span>`],
+          ['Starts', s => esc(s.start)],
+          ['Duration', s => esc(s.duration)],
+          ['Tuition (local)', s => `${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}`],
+          ['Tuition (USD)', s => usd(s.tuitionUsd)],
+          ['All-in (USD)', s => `<b>${usd(s.totalUsd)}</b>`],
+          ['App fee', s => s.appFeeUsd ? usd(s.appFeeUsd) : '—'],
+          ...(funds ? [['Gap', s => { const g = funds - s.totalUsd - (s.appFeeUsd || 0); return g >= 0 ? '<span class="gap-ok">covered</span>' : `<span class="gap-short">−${usd(Math.abs(g))}</span>`; }]] : []),
+          ['Progress', s => `${pct(s.tasks)}% · ${(s.tasks || []).filter(t => t.done).length}/${(s.tasks || []).length} tasks`],
+          ['Scholarship', s => esc(s.scholarship)],
+        ].map(([label, fn]) => `<tr><td style="font-weight:600;white-space:nowrap">${label}</td>${cmp.map(s => `<td>${fn(s)}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table></div>` : `<div class="setnote" style="padding:0 0 6px">Tap two or three schools above to see them side by side — the quickest way to decide which switch to flick off in Settings.</div>`}
 
     <div class="sechead"><h2>Funding sources</h2><span class="c">${funding.length} routes</span></div>
     <div class="tscroll"><table>
@@ -1520,6 +1929,24 @@ function renderSettings() {
         </div>
         <button class="setbtn" onclick="__restore()">Restore</button>
       </div>
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Daily snapshots</b>
+          <span>The app saves one automatic snapshot of everything per day, keeping the last seven. If a sync goes wrong or something gets deleted by mistake, roll back to any day this week.</span>
+        </div>
+        <button class="setbtn" onclick="__snapList()">Roll back…</button>
+      </div>
+      <div id="snapList"></div>
+    </div>
+
+    <div class="set">
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Device notifications</b>
+          <span>Registers this device for a daily push of everything due in the next 7 days — it arrives even when the app is closed. Needs the sending side to be live once: see <b>PUSH-SETUP.md</b> in the app folder (a free GitHub Action, about five minutes).</span>
+        </div>
+        <button class="setbtn" onclick="__enablePush()">Enable</button>
+      </div>
     </div>
 
     <div class="set">
@@ -1582,11 +2009,91 @@ function render() {
   renderSettings();
 }
 
+/* ---------------- Daily snapshots ----------------
+   Once per day, after sync connects, a copy of the whole document is
+   written to a per-weekday slot (see sync.js). Rolling back is a normal
+   save: the restored data becomes the live document and syncs everywhere. */
+function maybeSnapshot() {
+  if (!data || !window.EmbaSync) return;
+  const stamp = todayISO();
+  if (localStorage.getItem('lastSnap') === stamp) return;
+  window.EmbaSync.snapshot(data).then((ok) => {
+    if (ok) localStorage.setItem('lastSnap', stamp);
+  });
+}
+
+const DAY_NAMES = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday', sun:'Sunday' };
+
+window.__snapList = async () => {
+  const box = $('#snapList');
+  if (!window.EmbaSync || !window.EmbaSync.available()) { toast('Sync is not set up on this device'); return; }
+  box.innerHTML = '<div class="setnote">Looking for snapshots…</div>';
+  const snaps = await window.EmbaSync.listSnapshots();
+  if (!snaps.length) {
+    box.innerHTML = '<div class="setnote">No snapshots yet — the first one is written the next time the app opens with sync connected.</div>';
+    return;
+  }
+  box.innerHTML = snaps.map(({ day, updatedAt }) => `
+    <div class="setrow">
+      <div class="setlbl">
+        <b>${DAY_NAMES[day] || day}</b>
+        <span class="logosrc">${updatedAt ? new Date(updatedAt).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'unknown time'}</span>
+      </div>
+      <button class="setbtn" onclick="__snapRestore('${day}')">Restore</button>
+    </div>`).join('');
+};
+
+window.__snapRestore = async (day) => {
+  if (!confirm(`Replace everything with the ${DAY_NAMES[day] || day} snapshot? This syncs to every device.`)) return;
+  const payload = await window.EmbaSync.getSnapshot(day);
+  if (!payload || !Array.isArray(payload.schools)) { toast('Could not read that snapshot'); return; }
+  data = payload;
+  migrate(data);
+  save();
+  render();
+  toast(`Rolled back to ${DAY_NAMES[day] || day}'s snapshot`);
+};
+
+/* ---------------- Device push ----------------
+   The service worker's push handler has been sitting dormant; this is the
+   client half that brings it to life. The sending half is a scheduled
+   GitHub Action (scripts/send-push.mjs) — free, no Firebase paid plan.
+   Until that Action is set up, enabling here stores the subscription and
+   nothing arrives; PUSH-SETUP.md walks through the one-time setup. */
+const VAPID_PUBLIC_KEY = 'BPL6724MYxNUc0xe53WYxWRTTW-9VJoixE3RU1qdxs9X2Bmss83Nd5oo1rcqsmst3ncC5Z9JZF2lq6_klk5A1E0';
+
+function urlB64ToUint8Array(s) {
+  const pad = '='.repeat((4 - (s.length % 4)) % 4);
+  const raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+window.__enablePush = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    toast('This browser does not support push'); return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Notifications are blocked in your browser settings'); return; }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    const ok = window.EmbaSync && await window.EmbaSync.savePushSub(sub.toJSON());
+    toast(ok
+      ? 'Device registered — daily reminders will arrive once the GitHub Action is live'
+      : 'Subscribed on this device, but saving it for the sender failed');
+  } catch (e) {
+    console.error('Push subscribe failed', e);
+    toast('Could not subscribe this device for push');
+  }
+};
+
 /* ---------------- Reminders ----------------
    Browser notifications fire only while this page is open in a tab.
-   For push when the app is closed you need a service worker plus
-   Firebase Cloud Messaging, driven by a scheduled Cloud Function.
-   Hook documented in README.md.
+   For push when the app is closed, see the Device notifications row in
+   Settings and PUSH-SETUP.md.
 -------------------------------------------- */
 $('#notify').addEventListener('click', async () => {
   if (!('Notification' in window)) { toast('This browser does not support notifications'); return; }
@@ -1598,7 +2105,7 @@ $('#notify').addEventListener('click', async () => {
 
 function checkDue(force = false) {
   if (!data || Notification.permission !== 'granted') return;
-  const stamp = today().toISOString().slice(0, 10);
+  const stamp = todayISO();
   if (!force && localStorage.getItem('lastNotify') === stamp) return;
 
   const soon = [];

@@ -1,0 +1,3 @@
+# Holds the private half of the push keypair — belongs in a GitHub secret,
+# never in the repository. See PUSH-SETUP.md.
+PUSH-PRIVATE-KEY.txt

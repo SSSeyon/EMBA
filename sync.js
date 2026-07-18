@@ -22,7 +22,7 @@
    ---------------------------------------------------------------- */
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCr7Y5g_Rr3OZ4NQX3IoHGxszd6hgnZPGI',
@@ -92,6 +92,70 @@ window.EmbaSync = {
       await setDoc(doc(db, 'syncs', DOC_ID), payload);
     } catch (e) {
       console.error('Sync push failed', e);
+    }
+  },
+
+  /* ---- Daily snapshots ----
+     One snapshot document per weekday (…-snap-mon … -snap-sun), overwritten
+     on a weekly cycle. Seven fixed slots means there is never anything to
+     prune and the whole history costs at most 7 MB of Firestore. This is
+     an undo for bad syncs and fat-fingered restores, not a security layer. */
+  async snapshot(payload) {
+    if (!connected || !db) return false;
+    const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+    try {
+      await setDoc(doc(db, 'syncs', DOC_ID + '-snap-' + day), payload);
+      return true;
+    } catch (e) {
+      console.error('Snapshot failed', e);
+      return false;
+    }
+  },
+
+  async listSnapshots() {
+    if (!db) return [];
+    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const out = [];
+    for (const day of days) {
+      try {
+        const snap = await getDoc(doc(db, 'syncs', DOC_ID + '-snap-' + day));
+        if (snap.exists()) {
+          const v = snap.data();
+          out.push({ day, updatedAt: v.updatedAt || 0 });
+        }
+      } catch (e) { /* a missing day is not an error */ }
+    }
+    return out.sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+
+  async getSnapshot(day) {
+    if (!db) return null;
+    try {
+      const snap = await getDoc(doc(db, 'syncs', DOC_ID + '-snap-' + day));
+      return snap.exists() ? snap.data() : null;
+    } catch (e) {
+      console.error('Snapshot read failed', e);
+      return null;
+    }
+  },
+
+  /* ---- Push subscriptions ----
+     Each device that enables notifications stores its PushSubscription in a
+     side document, keyed by a hash of its endpoint so re-subscribing the
+     same device overwrites rather than duplicates. The daily GitHub Action
+     reads this document and sends to every subscription in it. */
+  async savePushSub(sub) {
+    if (!db) return false;
+    try {
+      let h = 0;
+      for (let i = 0; i < sub.endpoint.length; i++) h = (h * 31 + sub.endpoint.charCodeAt(i)) >>> 0;
+      await setDoc(doc(db, 'syncs', DOC_ID + '-push'),
+        { ['sub_' + h.toString(36)]: sub, updatedAt: Date.now() },
+        { merge: true });
+      return true;
+    } catch (e) {
+      console.error('Saving push subscription failed', e);
+      return false;
     }
   },
 };

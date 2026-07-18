@@ -1,0 +1,24 @@
+# Daily deadline push for the EMBA tracker.
+# Sends a Web Push to every device registered in Settings → Device
+# notifications, listing everything due within 7 days.
+# 06:00 UTC = 07:00 in Lagos. Also runnable by hand from the Actions tab.
+name: Daily deadline push
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install web-push@3
+      - run: node scripts/send-push.mjs
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
