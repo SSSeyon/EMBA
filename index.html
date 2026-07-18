@@ -135,20 +135,54 @@ header{
 }
 /* Invisible padding so the thumb target clears 44px without making the
    switch itself look oversized. */
-.switch::before{content:'';position:absolute;inset:-7px -4px}
+/* Invisible tap area. The switch is 30px tall for looks; this pushes the
+   touch target past 44px without changing what you see. Rows are 73px
+   apart, so neighbouring switches never overlap. */
+.switch::before{content:'';position:absolute;inset:-9px -6px}
 .switch.on{background:var(--gold);border-color:var(--gold)}
 .switch.on::after{transform:translateX(22px);background:var(--on-accent)}
 
-nav{max-width:1240px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
-nav::-webkit-scrollbar{display:none}
-.tab{
-  padding:11px 15px;font-size:13px;font-weight:500;color:var(--muted);
-  border-bottom:2px solid transparent;white-space:nowrap;
+/* ---------- Bottom tab bar ----------
+   Thumb-reachable navigation, which is the whole reason it is down here
+   rather than under the header: on a tall phone the top of the screen is
+   the hardest place to reach. Same bar at every width, just centred and
+   given a little more room on a desktop. */
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;
+  display:flex;gap:2px;
+  padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+  background:var(--header-bg);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
 }
-.tab.on{color:var(--gold);border-bottom-color:var(--gold)}
-.tab:hover{color:var(--paper)}
+.tab{
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:7px 2px;border-radius:12px;
+  font-size:10.5px;font-weight:500;color:var(--muted);
+  transition:color .15s ease,background .15s ease;
+}
+.tab svg{
+  width:22px;height:22px;flex-shrink:0;
+  fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.tab span{overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
+.tab.on{color:var(--gold);background:var(--gold-lo)}
+.tab:active{opacity:.65}
 
-main{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
+@media(min-width:641px){
+  nav{
+    left:50%;right:auto;transform:translateX(-50%);
+    width:min(620px,calc(100% - 32px));
+    margin-bottom:16px;border:1px solid var(--line);border-radius:18px;
+    box-shadow:0 8px 28px var(--shadow);
+  }
+  .tab{font-size:11.5px}
+  .tab:hover{color:var(--paper)}
+}
+
+/* Clear the bar so the last row of content is never trapped under it. */
+main{max-width:1240px;margin:0 auto;padding:24px 20px calc(96px + env(safe-area-inset-bottom))}
 .panel{display:none}
 .panel.on{display:block}
 
@@ -164,11 +198,21 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
 .days.warn{color:var(--amber)}
 .days-label{font-size:13px;color:var(--muted);margin-top:6px}
 .hero-school{margin-left:auto;text-align:right}
-.hero-school .n{font-size:15px;font-weight:600}
+.hero-school .n{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;justify-content:flex-end}
 .hero-school .d{font-size:12px;color:var(--muted);margin-top:3px}
 .hero-bar{display:flex;border-top:1px solid var(--line)}
-.stat{flex:1;padding:13px 16px;border-right:1px solid var(--line);min-width:0}
+.stat{flex:1;padding:13px 16px;border-right:1px solid var(--line);min-width:0;position:relative;overflow:hidden}
 .stat:last-child{border-right:none}
+/* Each box is its own progress bar: the tint fills left-to-right in
+   proportion to the number shown, so the dashboard reads at a glance
+   without anyone having to parse four separate figures. */
+.statfill{
+  position:absolute;left:0;top:0;bottom:0;width:0;
+  background:var(--gold-lo);transition:width .45s cubic-bezier(.4,0,.2,1);
+}
+.statfill.green{background:var(--green-lo)}
+.statfill.red{background:var(--red-lo)}
+.stat .k,.stat .v{position:relative;z-index:1}
 .stat .k{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
 .stat .v{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
 
@@ -285,14 +329,24 @@ th{
 td{padding:11px 13px;border-top:1px solid var(--line);vertical-align:top}
 tbody tr:hover{background:var(--ink-2)}
 td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* A right-aligned column needs a right-aligned heading, or the header sits
+   adrift from the digits it labels. */
+th.num{text-align:right}
+
+/* Small logo used in the dashboard runway table and next to the hero school. */
+.logo-sm{width:22px;height:22px;border-radius:5px}
+.tname{display:flex;align-items:center;gap:9px;min-width:0}
 
 /* ---------- Settings ---------- */
 .set{border:1px solid var(--line);border-radius:12px;background:var(--ink-2);padding:4px 16px;margin-bottom:14px}
 .setrow{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
 .setrow:first-child{border-top:none}
 .setlbl{flex:1;min-width:0}
-.setlbl b{display:block;font-size:14px;font-weight:600}
-.setlbl span{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+/* Direct child only — a <b> used for emphasis inside the description text
+   must stay inline, not become another heading. */
+.setlbl > b{display:block;font-size:14px;font-weight:600}
+.setlbl > span{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.setlbl > span b{color:var(--paper);font-weight:600}
 .setbtn{
   font-size:13px;font-weight:500;padding:11px 15px;min-height:44px;flex-shrink:0;
   border:1px solid var(--line);border-radius:10px;color:var(--paper);background:var(--ink-3);
@@ -301,12 +355,51 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
 .setbtn:active{opacity:.7}
 .setnote{font-size:11.5px;color:var(--muted);line-height:1.6;padding:0 0 14px}
 
+/* Exchange-rate field. */
+.fxbox{
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
+  border:1px solid var(--line);border-radius:10px;background:var(--ink-3);
+  padding:0 11px;min-height:44px;
+}
+.fxbox:focus-within{border-color:var(--gold)}
+.fxsym,.fxper{font-size:13px;color:var(--muted);flex-shrink:0}
+.fxbox input{
+  width:88px;background:none;border:none;color:var(--paper);
+  font-family:'IBM Plex Mono',monospace;font-size:14px;text-align:right;
+  padding:11px 0;-moz-appearance:textfield;
+}
+.fxbox input:focus{outline:none}
+.fxbox input::-webkit-outer-spin-button,
+.fxbox input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
 /* One row per school in the logo picker. Buttons stay side by side even on
    a narrow phone — they are short, and stacking them would make this list
    18 screens long. */
-.logorow .logo{width:34px;height:34px}
-.logorow .setbtn{padding:10px 13px;font-size:12.5px}
+/* The logo itself is the button for changing it. A separate "Choose" button
+   per row would push each row onto two lines, and 18 of those is a very
+   long scroll on a phone. */
+.logobtn{
+  position:relative;flex-shrink:0;width:44px;height:44px;
+  display:grid;place-items:center;border-radius:10px;
+}
+.logobtn .logo{width:34px;height:34px}
+.logobtn::after{
+  content:'';position:absolute;right:1px;bottom:1px;width:13px;height:13px;
+  border-radius:50%;background:var(--ink-3);border:1px solid var(--line);
+  background-image:linear-gradient(var(--muted),var(--muted));
+  background-size:7px 1.5px;background-position:center;background-repeat:no-repeat;
+  box-shadow:0 0 0 2px var(--ink-2);
+}
+.logobtn:active{opacity:.6}
 .logosrc{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.resetlink{
+  font-size:11px;color:var(--blue);text-decoration:underline;
+  padding:4px 0;margin-top:2px;display:inline-block;
+}
+/* An excluded school stays listed here — greyed, not hidden — so you can
+   always find it again to switch it back on. */
+.logorow.off .logo,.logorow.off .setlbl > b{opacity:.4}
+.logorow.off .setlbl > b{text-decoration:line-through}
 
 /* ---------- Empty ---------- */
 .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:12px}
@@ -325,13 +418,12 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
    kept at 44px or more, and anything that would force sideways scrolling of
    the page itself is stacked instead. */
 @media(max-width:640px){
-  main{padding:18px 14px 70px}
+  main{padding:18px 14px calc(92px + env(safe-area-inset-bottom))}
   .hwrap{padding:10px 14px;gap:9px}
-  nav{padding:0 14px}
-  .tab{padding:13px 14px;font-size:13.5px}
   .days{font-size:44px}
   .hero-top{padding:16px}
   .hero-school{margin-left:0;text-align:left;width:100%}
+  .hero-school .n{justify-content:flex-start}
   .hero-bar{flex-wrap:wrap}
   .stat{min-width:50%;border-bottom:1px solid var(--line)}
   .brand{font-size:16px}
@@ -375,14 +467,6 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
   <input type="file" id="logoFile" accept="image/*" style="display:none" />
     </div>
-    <nav>
-      <button class="tab on" data-p="dash">Dashboard</button>
-      <button class="tab" data-p="schools">Schools</button>
-      <button class="tab" data-p="steps">Project steps</button>
-      <button class="tab" data-p="actions">My actions</button>
-      <button class="tab" data-p="money">Costs &amp; funding</button>
-      <button class="tab" data-p="settings">Settings</button>
-    </nav>
   </header>
 
   <main>
@@ -394,6 +478,37 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
     <div class="panel" id="p-settings"></div>
   </main>
 </div>
+
+<!-- Bottom tab bar. Deliberately a direct child of <body>, NOT inside
+     <header>: an ancestor with backdrop-filter becomes the containing block
+     for position:fixed, which would pin this bar inside the header instead
+     of the viewport. -->
+<nav>
+  <button class="tab on" data-p="dash">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/></svg>
+    <span>Home</span>
+  </button>
+  <button class="tab" data-p="schools">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V7l8-3 8 3v13"/><path d="M9.5 20v-5h5v5"/><path d="M2.5 20h19"/></svg>
+    <span>Schools</span>
+  </button>
+  <button class="tab" data-p="steps">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12"/><path d="M9 12h12"/><path d="M9 18h12"/><path d="M3.5 6h.01"/><path d="M3.5 12h.01"/><path d="M3.5 18h.01"/></svg>
+    <span>Steps</span>
+  </button>
+  <button class="tab" data-p="actions">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.5 2.5 4.5-5"/></svg>
+    <span>Actions</span>
+  </button>
+  <button class="tab" data-p="money">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8h15a2 2 0 012 2v7a2 2 0 01-2 2h-13a2 2 0 01-2-2V8z"/><path d="M3.5 8V6.6a1.6 1.6 0 011.2-1.55L15 3"/><circle cx="17" cy="13.5" r="1.1"/></svg>
+    <span>Costs</span>
+  </button>
+  <button class="tab" data-p="settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 17h16"/><circle cx="9.5" cy="7" r="2.2"/><circle cx="15" cy="17" r="2.2"/></svg>
+    <span>Settings</span>
+  </button>
+</nav>
 
 <div id="toast"></div>
 
@@ -410,7 +525,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.7.0';
+const APP_VERSION = 'v1.8.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -453,7 +568,46 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
 }
 
-const usd = (n) => '$' + Number(n || 0).toLocaleString('en-GB');
+/* ---------------- Money formatting ----------------
+   Every cost in seed.js is held in USD. If you have set an exchange rate in
+   Settings, the naira equivalent is shown in brackets beside every figure.
+   No rate set means no brackets: the app will not invent a rate, because a
+   stale guess is worse than no number at all. */
+function fxRate() {
+  const r = Number(data && data.fx && data.fx.ngnPerUsd);
+  return r > 0 ? r : null;
+}
+
+/* Naira figures for a £100k course run to nine digits, which would wreck a
+   table column, so anything over a thousand is abbreviated. */
+function ngn(usdAmount) {
+  const rate = fxRate();
+  if (rate === null) return '';
+  const n = Number(usdAmount || 0) * rate;
+  if (n >= 1e9) return '₦' + (n / 1e9).toFixed(n < 1e10 ? 2 : 1) + 'bn';
+  if (n >= 1e6) return '₦' + (n / 1e6).toFixed(n < 1e7 ? 1 : 0) + 'm';
+  if (n >= 1e3) return '₦' + Math.round(n / 1e3).toLocaleString('en-GB') + 'k';
+  return '₦' + Math.round(n);
+}
+
+const usdOnly = (n) => '$' + Number(n || 0).toLocaleString('en-GB');
+
+/* The standard money renderer used everywhere a figure appears. */
+function usd(n) {
+  const naira = ngn(n);
+  return usdOnly(n) + (naira ? ` (${naira})` : '');
+}
+
+/* ---------------- Excluded schools ----------------
+   A school you switch off in Settings stays in your data — it is only
+   filtered out of the lists and the counts. Nothing is deleted, so
+   switching it back on restores its ticks and notes untouched. */
+function isExcluded(id) {
+  return !!(data && data.excluded && data.excluded[id]);
+}
+function activeSchools() {
+  return (data.schools || []).filter((s) => !isExcluded(s.id));
+}
 
 function toast(msg) {
   const t = $('#toast');
@@ -520,6 +674,8 @@ function migrate(d) {
   });
 
   if (!d.logos || typeof d.logos !== 'object') { d.logos = {}; changed = true; }
+  if (!d.excluded || typeof d.excluded !== 'object') { d.excluded = {}; changed = true; }
+  if (!d.fx || typeof d.fx !== 'object') { d.fx = { ngnPerUsd: null }; changed = true; }
 
   if (d.seedVersion !== SEED_VERSION) { d.seedVersion = SEED_VERSION; changed = true; }
   return changed;
@@ -692,7 +848,7 @@ function buildICS() {
   const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//EMBA Tracker//EN', 'CALSCALE:GREGORIAN'];
 
-  (data.schools || []).forEach(s => {
+  activeSchools().forEach(s => {
     if (!s.deadline || pct(s.tasks) === 100) return;
     lines.push(
       'BEGIN:VEVENT',
@@ -838,7 +994,7 @@ function taskRow(scope, containerId, t) {
 
 /* ---------------- Dashboard ---------------- */
 function renderDash() {
-  const schools = data.schools || [];
+  const schools = activeSchools();
   const steps   = data.steps   || [];
   const actions = data.actions || [];
 
@@ -879,6 +1035,11 @@ function renderDash() {
 
   const estCount = schools.filter(s => s.estimated).length;
 
+  // Fill proportions for the four stat boxes.
+  const outstanding = allTasks.filter(t => !t.done).length;
+  const sentPct = schools.length ? Math.round(submitted / schools.length * 100) : 0;
+  const soonPct = outstanding ? Math.round(soon.length / outstanding * 100) : 0;
+
   $('#p-dash').innerHTML = `
     ${estCount ? `<div class="banner">
       <b>${estCount} of ${schools.length} deadlines are estimates, not confirmed dates.</b>
@@ -895,16 +1056,31 @@ function renderDash() {
         </div>
         ${next ? `
           <div class="hero-school">
-            <div class="n">${esc(next.s.name)}</div>
+            <div class="n"><img class="logo logo-sm" data-logo="${next.s.id}" alt="">${esc(next.s.name)}</div>
             <div class="d ${next.s.estimated ? 'est' : ''}">${fmtDate(next.s.deadline)} · ${esc(next.s.deadlineNote || '')}</div>
             <div style="margin-top:8px"><span class="pill p-${next.s.priority}">${next.s.priority}</span></div>
           </div>` : ''}
       </div>
       <div class="hero-bar">
-        <div class="stat"><div class="k">Overall progress</div><div class="v">${overall}%</div></div>
-        <div class="stat"><div class="k">Tasks done</div><div class="v">${doneCount}<span style="color:var(--muted);font-size:13px">/${allTasks.length}</span></div></div>
-        <div class="stat"><div class="k">Applications sent</div><div class="v">${submitted}<span style="color:var(--muted);font-size:13px">/18</span></div></div>
-        <div class="stat"><div class="k">Due in 14 days</div><div class="v" style="color:${soon.length ? 'var(--red)' : 'var(--paper)'}">${soon.length}</div></div>
+        <div class="stat">
+          <div class="statfill ${overall === 100 ? 'green' : ''}" style="width:${overall}%"></div>
+          <div class="k">Overall progress</div><div class="v">${overall}%</div>
+        </div>
+        <div class="stat">
+          <div class="statfill ${overall === 100 ? 'green' : ''}" style="width:${overall}%"></div>
+          <div class="k">Tasks done</div>
+          <div class="v">${doneCount}<span style="color:var(--muted);font-size:13px">/${allTasks.length}</span></div>
+        </div>
+        <div class="stat">
+          <div class="statfill ${sentPct === 100 ? 'green' : ''}" style="width:${sentPct}%"></div>
+          <div class="k">Applications sent</div>
+          <div class="v">${submitted}<span style="color:var(--muted);font-size:13px">/${schools.length}</span></div>
+        </div>
+        <div class="stat">
+          <div class="statfill red" style="width:${soon.length ? soonPct : 0}%"></div>
+          <div class="k">Due in 14 days</div>
+          <div class="v" style="color:${soon.length ? 'var(--red)' : 'var(--paper)'}">${soon.length}</div>
+        </div>
       </div>
     </div>
 
@@ -923,12 +1099,14 @@ function renderDash() {
 
     <div class="sechead"><h2>Deadline runway</h2><span class="c">by submission date</span></div>
     <div class="tscroll"><table>
-      <thead><tr><th>School</th><th>Priority</th><th>Deadline</th><th>Countdown</th><th>Progress</th></tr></thead>
+      <thead><tr><th>School</th><th>Priority</th><th class="num">Deadline</th><th class="num">Countdown</th><th>Progress</th></tr></thead>
       <tbody>
         ${schools.slice().sort((a,b) => (daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9)).map(s => {
           const n = daysTo(s.deadline), p = pct(s.tasks);
           return `<tr>
-            <td style="font-weight:500">${esc(s.name)}</td>
+            <td style="font-weight:500">
+              <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}</div>
+            </td>
             <td><span class="pill p-${s.priority}">${s.priority}</span></td>
             <td class="num ${s.estimated ? 'est' : ''}" style="color:var(--muted)">${fmtDate(s.deadline)}</td>
             <td class="num ${p === 100 ? '' : dueClass(n)} ${s.estimated ? 'est' : ''}">${p === 100 ? 'Sent' : dueText(n)}</td>
@@ -940,6 +1118,8 @@ function renderDash() {
         }).join('')}
       </tbody>
     </table></div>`;
+
+  hydrateLogos($('#p-dash'));
 }
 
 /* ---------------- School logos ----------------
@@ -1055,6 +1235,22 @@ window.__pickLogo = (id) => {
   inp.click();
 };
 
+/* Switch a school in or out of the tracker. The settings list is long, so
+   hold the scroll position — re-rendering would otherwise throw you back to
+   the top every time you flick a switch. */
+window.__toggleSchool = (id) => {
+  const y = window.scrollY;
+  data.excluded = data.excluded || {};
+  if (data.excluded[id]) delete data.excluded[id];
+  else data.excluded[id] = true;
+  save();
+  render();
+  window.scrollTo({ top: y });
+  const s = (data.schools || []).find((x) => x.id === id);
+  const name = s ? s.name : 'School';
+  toast(isExcluded(id) ? `${name} switched off` : `${name} switched back on`);
+};
+
 window.__clearLogo = (id) => {
   if (!data.logos || !data.logos[id]) return;
   delete data.logos[id];
@@ -1062,6 +1258,22 @@ window.__clearLogo = (id) => {
   render();
   toast('Back to the logos folder for this school');
 };
+
+/* The rate field is rebuilt on every render, so listen at the document
+   level rather than binding to an element that keeps being replaced.
+   'change' (not 'input') means this fires when you finish typing, not on
+   every keystroke — re-rendering mid-keystroke would steal the caret. */
+document.addEventListener('change', (e) => {
+  if (!e.target || e.target.id !== 'fxRate') return;
+  const v = parseFloat(e.target.value);
+  data.fx = data.fx || {};
+  data.fx.ngnPerUsd = isFinite(v) && v > 0 ? v : null;
+  save();
+  render();
+  toast(data.fx.ngnPerUsd
+    ? `Rate set — ₦${data.fx.ngnPerUsd.toLocaleString('en-GB')} to $1`
+    : 'Naira conversion off');
+});
 
 $('#logoFile').addEventListener('change', async (e) => {
   const file = e.target.files && e.target.files[0];
@@ -1092,11 +1304,12 @@ $('#logoFile').addEventListener('change', async (e) => {
 /* ---------------- Schools ---------------- */
 function renderSchools() {
   const order = { URGENT:0, HIGH:1, AMBER:2, STANDARD:3 };
-  const schools = (data.schools || []).slice().sort((a, b) =>
+  const schools = activeSchools().slice().sort((a, b) =>
     (order[a.priority] - order[b.priority]) || ((daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9)));
+  const hidden = (data.schools || []).length - schools.length;
 
   $('#p-schools').innerHTML = `
-    <div class="sechead"><h2>18 schools</h2><span class="c">tap a school to open its checklist</span></div>
+    <div class="sechead"><h2>${schools.length} school${schools.length === 1 ? '' : 's'}</h2><span class="c">tap a school to open its checklist${hidden ? ` · ${hidden} switched off in Settings` : ''}</span></div>
     <div class="grid">
       ${schools.map(s => {
         const n = daysTo(s.deadline), p = pct(s.tasks);
@@ -1131,7 +1344,7 @@ function renderSchools() {
                 </div>
               ` : ''}
               <b>Starts:</b> ${esc(s.start)} · ${esc(s.duration)}<br>
-              <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} (${usd(s.tuitionUsd)}) · <b>All-in:</b> ${usd(s.totalUsd)}<br>
+              <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} · ${usd(s.tuitionUsd)} · <b>All-in:</b> ${usd(s.totalUsd)}<br>
               <b>Waiver:</b> ${esc(s.waiverNote)}<br>
               <b>Scholarship:</b> ${esc(s.scholarship)}<br>
               <b>Apply for funding:</b> ${esc(s.scholarshipTiming)}
@@ -1195,16 +1408,18 @@ function renderActions() {
 
 /* ---------------- Money ---------------- */
 function renderMoney() {
-  const ranked = (data.schools || []).slice().sort((a, b) => a.totalUsd - b.totalUsd);
+  const ranked = activeSchools().slice().sort((a, b) => a.totalUsd - b.totalUsd);
   const funding = data.funding || [];
   $('#p-money').innerHTML = `
     <div class="sechead"><h2>Total cost ranking</h2><span class="c">tuition + fees + living, USD</span></div>
     <div class="tscroll"><table>
-      <thead><tr><th>#</th><th>School</th><th>Tuition (local)</th><th>Tuition (USD)</th><th>All-in (USD)</th></tr></thead>
+      <thead><tr><th class="num">#</th><th>School</th><th class="num">Tuition (local)</th><th class="num">Tuition (USD)</th><th class="num">All-in (USD)</th></tr></thead>
       <tbody>
         ${ranked.map((s, i) => `<tr>
-          <td class="mono" style="color:var(--muted)">${i + 1}</td>
-          <td style="font-weight:500">${esc(s.name)}${s.flag ? ' <span style="color:var(--gold)">⚑</span>' : ''}</td>
+          <td class="num" style="color:var(--muted)">${i + 1}</td>
+          <td style="font-weight:500">
+            <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}${s.flag ? ' <span style="color:var(--gold)">⚑</span>' : ''}</div>
+          </td>
           <td class="num" style="color:var(--muted)">${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}</td>
           <td class="num">${usd(s.tuitionUsd)}</td>
           <td class="num" style="font-weight:600">${usd(s.totalUsd)}</td>
@@ -1213,6 +1428,9 @@ function renderMoney() {
     </table></div>
     <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6">
       FX: EUR 1 ≈ USD 1.08 · GBP 1 ≈ USD 1.27 · CHF 1 ≈ USD 1.12 (late June 2026).
+      ${fxRate()
+        ? `Naira shown in brackets after each USD figure at ₦${Number(fxRate()).toLocaleString('en-GB')}/$1 — the rate you set in Settings. The “local” column stays in the school’s own currency; its naira equivalent is the one beside it.`
+        : `Set a naira rate in <b style="color:var(--gold)">Settings → Exchange rate</b> to see every figure in naira as well.`}
       ⚑ marks figures needing direct verification with the school.
     </div>
 
@@ -1228,6 +1446,8 @@ function renderMoney() {
         </tr>`).join('')}
       </tbody>
     </table></div>`;
+
+  hydrateLogos($('#p-money'));
 }
 
 /* ---------------- Settings ---------------- */
@@ -1248,6 +1468,23 @@ function renderSettings() {
                 role="switch" aria-checked="${light ? 'true' : 'false'}"
                 aria-label="Light mode" onclick="__toggleTheme()"></button>
       </div>
+    </div>
+
+    <div class="set">
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Exchange rate</b>
+          <span>Naira per US dollar. Every cost in the app is held in USD; set a rate here and the naira equivalent appears in brackets beside each figure. Leave it empty to show dollars only — the app will not guess a rate for you.</span>
+        </div>
+        <div class="fxbox">
+          <span class="fxsym">₦</span>
+          <input type="number" id="fxRate" inputmode="decimal" min="0" step="any"
+                 placeholder="e.g. 1650" value="${fxRate() ?? ''}"
+                 aria-label="Naira per US dollar">
+          <span class="fxper">/ $1</span>
+        </div>
+      </div>
+      ${fxRate() ? `<div class="setnote">Showing, for example, ${usd(100000)} on a $100,000 figure.</div>` : ''}
     </div>
 
     <div class="set">
@@ -1293,21 +1530,29 @@ function renderSettings() {
     <div class="set">
       <div class="setrow">
         <div class="setlbl">
-          <b>School logos</b>
-          <span>Two ways to set one. Drop an image into the logos folder named after the school — svg, png, webp, jpg, jpeg, avif and gif all work — or tap Choose to pick one from this device. A picked image is resized to 128px, saved with your data and synced to your other devices; a folder image is not, so it has to be added to each device's copy of the app.</span>
+          <b>Schools and logos</b>
+          <span>The switch decides whether a school appears anywhere in the tracker — turn one off after you rule it out and it drops out of every list, count and cost table. Nothing is deleted, so switching it back on brings its ticks and notes back exactly as they were.<br><br>For the logo: drop an image into the logos folder named after the school — svg, png, webp, jpg, jpeg, avif and gif all work — or <b>tap the logo below</b> to pick one from this device. A picked image is resized to 128px, saved with your data and synced to your other devices; a folder image is not, so it has to be added to each device's copy of the app.</span>
         </div>
       </div>
       ${schools.map((s) => {
         const picked = !!(data.logos && data.logos[s.id]);
+        const off = isExcluded(s.id);
         return `
-        <div class="setrow logorow">
-          <img class="logo" data-logo="${s.id}" alt="">
+        <div class="setrow logorow${off ? ' off' : ''}">
+          <button class="logobtn" onclick="__pickLogo('${s.id}')"
+                  aria-label="Change the logo for ${esc(s.name)}">
+            <img class="logo" data-logo="${s.id}" alt="">
+          </button>
           <div class="setlbl">
             <b>${esc(s.name)}</b>
-            <span class="logosrc">${esc(logoOrigin(s.id))}</span>
+            <span class="logosrc">${off ? 'switched off' : esc(logoOrigin(s.id))}</span>
+            ${picked ? `<a class="resetlink" role="button" tabindex="0"
+                 onclick="__clearLogo('${s.id}')">use the logos folder instead</a>` : ''}
           </div>
-          <button class="setbtn" onclick="__pickLogo('${s.id}')">Choose</button>
-          ${picked ? `<button class="setbtn" onclick="__clearLogo('${s.id}')">Reset</button>` : ''}
+          <button class="switch${off ? '' : ' on'}" role="switch"
+                  aria-checked="${off ? 'false' : 'true'}"
+                  aria-label="Include ${esc(s.name)} in the tracker"
+                  onclick="__toggleSchool('${s.id}')"></button>
         </div>`;
       }).join('')}
     </div>`);
@@ -1346,7 +1591,7 @@ function checkDue(force = false) {
   if (!force && localStorage.getItem('lastNotify') === stamp) return;
 
   const soon = [];
-  (data.schools || []).forEach(s => (s.tasks || []).forEach(t => {
+  activeSchools().forEach(s => (s.tasks || []).forEach(t => {
     const n = daysTo(t.due);
     if (!t.done && n !== null && n <= 7) soon.push(`${s.name}: ${t.label}`);
   }));
