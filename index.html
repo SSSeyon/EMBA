@@ -57,6 +57,8 @@ header{
 .hwrap{max-width:1240px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px}
 .brand{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
 .brand span{color:var(--gold)}
+.ver{font-size:10px;color:var(--muted);letter-spacing:.02em;padding:2px 6px;border:1px solid var(--line);border-radius:6px;white-space:nowrap;opacity:.7}
+.ver:hover{opacity:1;color:var(--gold)}
 .sync{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
 .dot.off{background:var(--muted)}
@@ -237,6 +239,7 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
   <header>
     <div class="hwrap">
       <div class="brand">EMBA <span>2027</span></div>
+      <button class="ver" id="ver" title="Click to hard-refresh (clears the cached app files)"></button>
       <div class="sync"><div class="dot" id="dot"></div><span id="syncTxt">On this device</span></div>
       <div class="spacer"></div>
       <button class="ghost" id="notify">Remind me</button>
@@ -275,6 +278,11 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
    your data between browsers or devices.
    ================================================================ */
 const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
+
+/* App version — bump this and CACHE_VERSION in sw.js together whenever
+   index.html / seed.js / sync.js change. Shown in the header; clicking it
+   hard-refreshes (drops the service-worker caches and reloads). */
+const APP_VERSION = 'v1.4.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -443,6 +451,29 @@ $('#sync').addEventListener('click', async () => {
   await connectSync(code.trim());
   if (data) save();
   toast('Synced this device — enter the same code on your others');
+});
+
+/* ---------------- Version badge / hard refresh ---------------- */
+$('#ver').textContent = APP_VERSION;
+
+$('#ver').addEventListener('click', async () => {
+  toast('Refreshing…');
+  // Your data lives in localStorage and is NOT touched here — this only
+  // drops the cached copies of index.html / seed.js / sync.js etc. so the
+  // browser is forced to re-fetch them.
+  try {
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    if (navigator.serviceWorker) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } catch (e) {
+    console.error('Cache clear failed', e);
+  }
+  location.reload();
 });
 
 function start() {

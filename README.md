@@ -107,50 +107,61 @@ in real time — tick a task on your phone, it appears on your laptop within a
 second or two. The header dot/text shows **Synced**, **Syncing…**, **Sync
 not set up**, or **Sync error**.
 
-**How it works under the hood:** signing in to Firebase is anonymous (no
-email/password, ever). Your sync code is SHA-256 hashed client-side into a
-Firestore document ID — two devices with the same code land on the same
-document. The whole `data` object is written on every save, with an
+**How it works under the hood:** there is no sign-in at all — the app talks
+to Firestore unauthenticated. Your sync code is SHA-256 hashed client-side
+into a Firestore document ID — two devices with the same code land on the
+same document. The whole `data` object is written on every save, with an
 `updatedAt` timestamp; if two devices save close together, the most recent
 write wins and the other simply gets overwritten next sync (fine for a
 single-user tracker, not built for simultaneous multi-editor use).
 
-**Security tradeoff, stated plainly:** a Firebase config (the values you'll
-paste into `sync.js`) is not a secret — it's normal for it to be visible in
-client-side code, including on a public GitHub Pages site. What *is*
-sensitive is your sync code, because the Firestore security rule below
-grants read/write to *any* signed-in-anonymously user, relying on the code
-(hashed into an unguessable document ID) as the only thing standing between
-a stranger and your document. That's an appropriate tradeoff for a personal
-tracker with no login system — just don't publish your sync code anywhere,
-and pick something longer than a dictionary word if you want real headroom.
+**Security tradeoff, stated plainly:** a Firebase config (the values in
+`sync.js`) is not a secret — it's normal for it to be visible in client-side
+code, including on a public GitHub Pages site. What *is* sensitive is your
+sync code, and here it is the **only** thing protecting your data. The
+security rule below allows anyone on the internet to read and write any
+document in the `syncs` collection, provided they can name its ID. Your
+document's ID is the SHA-256 hash of your sync code, so in practice nobody
+reaches it without knowing that code — but there is no second line of
+defence behind it.
+
+So: pick a long sync code, treat it like a password, and never publish it.
+A short or dictionary-word code is genuinely weak under this rule in a way it
+would not be behind a login. If you later want that second line of defence,
+turn on Firebase Anonymous auth (invisible to you, no login screen) and
+tighten the rule to also require `request.auth != null`.
 
 ### Setting up Sync
 
 1. **Create a Firebase project** — [console.firebase.google.com](https://console.firebase.google.com) → Add project (the free Spark plan is enough).
 2. **Add a Web app** to the project (</> icon on the project overview page). Copy the `firebaseConfig` object it gives you.
-3. **Enable Anonymous auth** — Build → Authentication → Sign-in method → Anonymous → Enable.
-4. **Create a Firestore database** — Build → Firestore Database → Create database → production mode, any region.
-5. **Set the security rule** — Firestore → Rules, replace the contents with:
+3. **Create a Firestore database** — Build → Firestore Database → Create database → production mode, any region.
+4. **Set the security rule** — Firestore → Rules, replace the contents with:
    ```
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
        match /syncs/{docId} {
-         allow read, write: if request.auth != null;
+         allow read, write: if docId.matches('^[0-9a-f]{64}$');
        }
      }
    }
    ```
-   Publish.
-6. **Paste your config into `sync.js`** — open the file, replace the six
+   Publish. No sign-in is required by this rule — see the security tradeoff
+   above. The `docId.matches(...)` condition confines access to the `syncs`
+   collection and to well-formed SHA-256 document IDs, so nothing else in the
+   database is reachable, but it does **not** authenticate the caller.
+5. **Paste your config into `sync.js`** — open the file, replace the six
    `REPLACE_ME` values in `firebaseConfig` with what you copied in step 2.
-7. Redeploy (or just reload if testing locally over `http://`, not `file://`
+6. Redeploy (or just reload if testing locally over `http://`, not `file://`
    — Firebase's SDK needs a real origin). Click **Sync**, pick a code, repeat
    on your other devices.
 
-Until step 6 is done, `sync.js` is inert on purpose — `EmbaSync.available()`
+Until step 5 is done, `sync.js` is inert on purpose — `EmbaSync.available()`
 returns false and the app stays exactly as it is today.
+
+**Firebase Authentication does not need to be enabled** for this setup, and
+the app never calls it.
 
 ---
 

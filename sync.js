@@ -3,36 +3,37 @@
    ES module (only loads over http/https — harmless no-op on file://,
    since browsers refuse to load <script type="module"> from disk).
 
-   How it works: still no accounts, no login screen. You pick a private
-   "sync code" once (the header "Sync" button) and enter the *same* code
-   on every device you want to share this tracker with. The code is
-   SHA-256 hashed into a Firestore document ID, so two devices with the
-   same code read and write the same document. Sign-in to Firebase itself
-   is anonymous — there is no email/password, ever.
+   How it works: no accounts, no login screen, no sign-in of any kind.
+   You pick a private "sync code" once (the header "Sync" button) and
+   enter the *same* code on every device you want to share this tracker
+   with. The code is SHA-256 hashed into a Firestore document ID, so two
+   devices with the same code read and write the same document.
 
-   SECURITY NOTE: anyone who has both your Firebase config (visible in
-   this file once deployed — it's not a secret, Firebase configs are
-   meant to be public) and your sync code could read/write that one
-   document. Treat the sync code like a shared password, not a public
-   detail. See README.md → "Sync across devices" for the Firestore
-   security rule this relies on, and setup steps.
+   SECURITY NOTE — read this one properly. There is NO authentication
+   here. The Firestore rule this relies on (README.md → "Setting up
+   Sync") allows unauthenticated reads and writes to any document in the
+   `syncs` collection whose ID is 64 hex characters. Your only protection
+   is that the document ID is a SHA-256 hash of your sync code, so nobody
+   can find your document without knowing that code. Treat the sync code
+   like a password: long, not a dictionary word, never published. A short
+   or guessable code is genuinely weak here in a way it would not be
+   behind a login.
 
-   Left with REPLACE_ME placeholders below, this file does nothing:
-   EmbaSync.available() returns false and the app quietly stays
-   localStorage-only.
+   If firebaseConfig below is left on REPLACE_ME placeholders, this file
+   does nothing: EmbaSync.available() returns false and the app quietly
+   stays localStorage-only. It is now filled in for project emba-e9960.
    ---------------------------------------------------------------- */
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
 
 const firebaseConfig = {
-  apiKey: 'REPLACE_ME',
-  authDomain: 'REPLACE_ME.firebaseapp.com',
-  projectId: 'REPLACE_ME',
-  storageBucket: 'REPLACE_ME.appspot.com',
-  messagingSenderId: 'REPLACE_ME',
-  appId: 'REPLACE_ME',
+  apiKey: 'AIzaSyCr7Y5g_Rr3OZ4NQX3IoHGxszd6hgnZPGI',
+  authDomain: 'emba-e9960.firebaseapp.com',
+  projectId: 'emba-e9960',
+  storageBucket: 'emba-e9960.firebasestorage.app',
+  messagingSenderId: '526804790379',
+  appId: '1:526804790379:web:9eb24b55167643b866d52e',
 };
 
 function configured() {
@@ -44,7 +45,7 @@ async function sha256Hex(text) {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-let app, auth, db;
+let app, db;
 let initPromise = null;
 let unsub = null;
 let docId = null;
@@ -53,14 +54,14 @@ function ensureInit() {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     if (!configured()) return false;
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    await new Promise((resolve) => {
-      const off = onAuthStateChanged(auth, (user) => { if (user) { off(); resolve(); } });
-      signInAnonymously(auth).catch((e) => { console.error('Sync sign-in failed', e); resolve(); });
-    });
-    return !!auth.currentUser;
+    try {
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      return true;
+    } catch (e) {
+      console.error('Sync init failed', e);
+      return false;
+    }
   })();
   return initPromise;
 }
