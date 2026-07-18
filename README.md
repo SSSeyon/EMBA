@@ -115,21 +115,23 @@ same document. The whole `data` object is written on every save, with an
 write wins and the other simply gets overwritten next sync (fine for a
 single-user tracker, not built for simultaneous multi-editor use).
 
-**Security tradeoff, stated plainly:** a Firebase config (the values in
-`sync.js`) is not a secret — it's normal for it to be visible in client-side
-code, including on a public GitHub Pages site. What *is* sensitive is your
-sync code, and here it is the **only** thing protecting your data. The
-security rule below allows anyone on the internet to read and write any
-document in the `syncs` collection, provided they can name its ID. Your
-document's ID is the SHA-256 hash of your sync code, so in practice nobody
-reaches it without knowing that code — but there is no second line of
-defence behind it.
+**Security, stated plainly:** this database is deliberately open. The
+Firestore rule is `allow read, write: if true` — no authentication, no
+restrictions on which documents can be touched. Anyone who knows the project
+ID can read or write it.
 
-So: pick a long sync code, treat it like a password, and never publish it.
-A short or dictionary-word code is genuinely weak under this rule in a way it
-would not be behind a login. If you later want that second line of defence,
-turn on Firebase Anonymous auth (invisible to you, no login screen) and
-tighten the rule to also require `request.auth != null`.
+The Firebase config in `sync.js` is not a secret (configs are meant to be
+public, and this one ships in a GitHub Pages site), so the project ID is
+effectively public too. In practice your data is obscure rather than
+protected: your document's ID is a SHA-256 hash of your sync code, so nobody
+stumbles onto it — but nothing stops them if they try.
+
+This is a personal admissions tracker, not sensitive records, and the choice
+was made knowingly for simplicity. If that calculus ever changes, the two
+upgrades in order of effort are: (1) scope the rule to
+`match /syncs/{docId}` so only that collection is reachable, and (2) turn on
+Firebase Anonymous auth — which is invisible, with no login screen — and add
+`request.auth != null` to the rule.
 
 ### Setting up Sync
 
@@ -141,16 +143,14 @@ tighten the rule to also require `request.auth != null`.
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
-       match /syncs/{docId} {
-         allow read, write: if docId.matches('^[0-9a-f]{64}$');
+       match /{document=**} {
+         allow read, write: if true;
        }
      }
    }
    ```
-   Publish. No sign-in is required by this rule — see the security tradeoff
-   above. The `docId.matches(...)` condition confines access to the `syncs`
-   collection and to well-formed SHA-256 document IDs, so nothing else in the
-   database is reachable, but it does **not** authenticate the caller.
+   Publish. This is an open database by choice — no authentication, no
+   restrictions. See the security note above.
 5. **Paste your config into `sync.js`** — open the file, replace the six
    `REPLACE_ME` values in `firebaseConfig` with what you copied in step 2.
 6. Redeploy (or just reload if testing locally over `http://`, not `file://`

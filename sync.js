@@ -9,15 +9,14 @@
    with. The code is SHA-256 hashed into a Firestore document ID, so two
    devices with the same code read and write the same document.
 
-   SECURITY NOTE — read this one properly. There is NO authentication
-   here. The Firestore rule this relies on (README.md → "Setting up
-   Sync") allows unauthenticated reads and writes to any document in the
-   `syncs` collection whose ID is 64 hex characters. Your only protection
-   is that the document ID is a SHA-256 hash of your sync code, so nobody
-   can find your document without knowing that code. Treat the sync code
-   like a password: long, not a dictionary word, never published. A short
-   or guessable code is genuinely weak here in a way it would not be
-   behind a login.
+   SECURITY NOTE: there is NO authentication and NO access control here,
+   by deliberate choice. The Firestore rule this pairs with is
+   `allow read, write: if true` (README.md → "Setting up Sync"), i.e. the
+   database is open to anyone who knows the project ID — and the config
+   below is public by nature. What keeps your data obscure is only that
+   the document ID is a SHA-256 hash of your sync code, so nobody
+   stumbles onto it by accident. Nothing prevents a determined reader.
+   Fine for an admissions tracker; do not store anything sensitive here.
 
    If firebaseConfig below is left on REPLACE_ME placeholders, this file
    does nothing: EmbaSync.available() returns false and the app quietly
