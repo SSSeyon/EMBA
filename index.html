@@ -12,29 +12,76 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<script>
+/* Runs before any paint so a light-mode user never sees a dark flash.
+   Deliberately tiny and dependency-free — it must not wait for anything. */
+(function () {
+  try {
+    var saved = localStorage.getItem('emba-theme');
+    var mode = saved || (window.matchMedia &&
+      window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', mode);
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{
-  --ink:#0B1220;
-  --ink-2:#131C2B;
-  --ink-3:#1C2739;
-  --line:#28344A;
-  --paper:#E8EAED;
-  --muted:#8A97AC;
-  --gold:#C8922A;
+/* ---------- Theme ----------
+   Dark is the default. Light is applied by setting data-theme="light" on
+   <html>. Every colour in the app comes from these variables — if you add a
+   rule with a literal hex in it, it will break one of the two themes. */
+:root, :root[data-theme="dark"]{
+  --ink:#0B1220;        /* page background        */
+  --ink-2:#131C2B;      /* cards, raised surfaces */
+  --ink-3:#1C2739;      /* inputs, hover, chips   */
+  --line:#28344A;       /* borders, rules         */
+  --paper:#E8EAED;      /* primary text           */
+  --muted:#8A97AC;      /* secondary text         */
+  --gold:#C8922A;       /* accent: brand, active  */
   --gold-lo:#3A2E14;
-  --red:#E0574A;
+  --red:#E0574A;        /* overdue / urgent       */
   --red-lo:#3A1A17;
-  --amber:#D9A441;
+  --amber:#D9A441;      /* due soon               */
   --amber-lo:#382C13;
-  --green:#4FA97E;
+  --green:#4FA97E;      /* done / confirmed       */
   --green-lo:#122E22;
-  --blue:#5B8DBE;
+  --blue:#5B8DBE;       /* links                  */
+  --header-bg:rgba(11,18,32,.92);
+  --on-accent:#0B1220;  /* text on a filled accent */
+  --urgent:#5A2B26;     /* urgent card border      */
+  --banner-ink:#E8D6AC;
+  --shadow:rgba(0,0,0,.5);
   --r:10px;
 }
+:root[data-theme="light"]{
+  --ink:#F6F4EF;
+  --ink-2:#FFFFFF;
+  --ink-3:#ECE8E0;
+  --line:#DED7C9;
+  --paper:#14192A;
+  --muted:#66708A;
+  --gold:#8A6212;
+  --gold-lo:#F7EEDA;
+  --red:#B3261E;
+  --red-lo:#FBE9E7;
+  --amber:#8F6100;
+  --amber-lo:#FBF1DA;
+  --green:#1C7A52;
+  --green-lo:#E2F1EA;
+  --blue:#215F96;
+  --header-bg:rgba(246,244,239,.92);
+  --on-accent:#FFFFFF;
+  --urgent:#E0A9A2;
+  --banner-ink:#5A4415;
+  --shadow:rgba(20,25,42,.16);
+}
 *{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+html[data-theme="light"]{color-scheme:light}
 html,body{background:var(--ink);color:var(--paper);}
 body{
   font-family:'IBM Plex Sans',system-ui,sans-serif;
@@ -51,8 +98,9 @@ a{color:var(--blue)}
 
 /* ---------- Shell ---------- */
 header{
-  position:sticky;top:0;z-index:20;background:rgba(11,18,32,.92);
+  position:sticky;top:0;z-index:20;background:var(--header-bg);
   backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top);
 }
 .hwrap{max-width:1240px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px}
 .brand{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
@@ -65,6 +113,31 @@ header{
 .spacer{flex:1}
 .ghost{font-size:13px;color:var(--muted);padding:7px 12px;border:1px solid var(--line);border-radius:8px}
 .ghost:hover{color:var(--paper);border-color:var(--muted)}
+
+/* Icon button — the header theme toggle. 40px square keeps it a comfortable
+   thumb target on a phone. */
+.iconbtn{
+  width:40px;height:40px;flex-shrink:0;display:grid;place-items:center;
+  font-size:16px;line-height:1;border:1px solid var(--line);
+  border-radius:10px;color:var(--muted);
+}
+.iconbtn:hover{color:var(--gold);border-color:var(--muted)}
+.iconbtn:active{background:var(--ink-3)}
+
+/* Toggle switch — used in Settings for the same theme control. */
+.switch{
+  position:relative;width:52px;height:30px;flex-shrink:0;border-radius:15px;
+  background:var(--ink-3);border:1px solid var(--line);transition:background .18s ease;
+}
+.switch::after{
+  content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;
+  border-radius:50%;background:var(--muted);transition:transform .18s ease,background .18s ease;
+}
+/* Invisible padding so the thumb target clears 44px without making the
+   switch itself look oversized. */
+.switch::before{content:'';position:absolute;inset:-7px -4px}
+.switch.on{background:var(--gold);border-color:var(--gold)}
+.switch.on::after{transform:translateX(22px);background:var(--on-accent)}
 
 nav{max-width:1240px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
@@ -115,10 +188,17 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
 .card{
   border:1px solid var(--line);border-radius:12px;background:var(--ink-2);overflow:hidden;
 }
-.card.urgent{border-color:#5A2B26}
+.card.urgent{border-color:var(--urgent)}
 .chead{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;user-select:none}
 .chead:hover{background:var(--ink-3)}
 .cname{font-weight:600;font-size:15px;letter-spacing:-.01em}
+
+/* School logo — sits in front of the name. Any square-ish image works;
+   see the "School logos" block in the JS below for where they come from. */
+.logo{
+  width:30px;height:30px;border-radius:7px;flex-shrink:0;display:block;
+  object-fit:contain;background:var(--ink-3);
+}
 .cmeta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:5px 10px}
 .cright{margin-left:auto;text-align:right;flex-shrink:0}
 .cdays{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -150,13 +230,13 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
 .est::before{content:'~';margin-right:1px;opacity:.7}
 .banner{
   border:1px solid var(--gold);background:var(--gold-lo);border-radius:10px;
-  padding:12px 14px;margin-bottom:18px;font-size:12.5px;line-height:1.6;color:#E8D6AC;
+  padding:12px 14px;margin-bottom:18px;font-size:12.5px;line-height:1.6;color:var(--banner-ink);
 }
 .banner b{color:var(--gold)}
 
 /* ---------- Tasks ---------- */
 .task{display:flex;align-items:flex-start;gap:11px;padding:8px 0;font-size:14px}
-.task+.task{border-top:1px solid rgba(40,52,74,.5)}
+.task+.task{border-top:1px solid var(--line)}
 .cb{
   width:18px;height:18px;border:1.5px solid var(--muted);border-radius:5px;
   flex-shrink:0;margin-top:1px;display:grid;place-items:center;
@@ -164,7 +244,7 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
 }
 .cb:hover{border-color:var(--gold)}
 .cb.on{background:var(--green);border-color:var(--green)}
-.cb.on::after{content:'✓';color:#0B1220;font-size:12px;font-weight:700;line-height:1}
+.cb.on::after{content:'✓';color:var(--on-accent);font-size:12px;font-weight:700;line-height:1}
 .tlabel{flex:1;min-width:0;line-height:1.45}
 .task.done .tlabel{color:var(--muted);text-decoration:line-through}
 .tdue{
@@ -206,6 +286,28 @@ td{padding:11px 13px;border-top:1px solid var(--line);vertical-align:top}
 tbody tr:hover{background:var(--ink-2)}
 td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 
+/* ---------- Settings ---------- */
+.set{border:1px solid var(--line);border-radius:12px;background:var(--ink-2);padding:4px 16px;margin-bottom:14px}
+.setrow{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+.setrow:first-child{border-top:none}
+.setlbl{flex:1;min-width:0}
+.setlbl b{display:block;font-size:14px;font-weight:600}
+.setlbl span{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.setbtn{
+  font-size:13px;font-weight:500;padding:11px 15px;min-height:44px;flex-shrink:0;
+  border:1px solid var(--line);border-radius:10px;color:var(--paper);background:var(--ink-3);
+}
+.setbtn:hover{border-color:var(--gold);color:var(--gold)}
+.setbtn:active{opacity:.7}
+.setnote{font-size:11.5px;color:var(--muted);line-height:1.6;padding:0 0 14px}
+
+/* One row per school in the logo picker. Buttons stay side by side even on
+   a narrow phone — they are short, and stacking them would make this list
+   18 screens long. */
+.logorow .logo{width:34px;height:34px}
+.logorow .setbtn{padding:10px 13px;font-size:12.5px}
+.logosrc{font-family:'IBM Plex Mono',monospace;font-size:11px}
+
 /* ---------- Empty ---------- */
 .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:12px}
 
@@ -214,14 +316,19 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120%);
   background:var(--ink-3);border:1px solid var(--line);border-radius:10px;
   padding:11px 18px;font-size:13px;z-index:50;transition:transform .25s ease;
-  box-shadow:0 8px 28px rgba(0,0,0,.5);max-width:calc(100vw - 40px);
+  box-shadow:0 8px 28px var(--shadow);max-width:calc(100vw - 40px);
 }
 #toast.show{transform:translateX(-50%) translateY(0)}
 
+/* ---------- Phone ----------
+   Primary target is a Galaxy S24 Ultra (~412 CSS px wide). Tap targets are
+   kept at 44px or more, and anything that would force sideways scrolling of
+   the page itself is stacked instead. */
 @media(max-width:640px){
   main{padding:18px 14px 70px}
-  .hwrap{padding:12px 14px;gap:10px}
+  .hwrap{padding:10px 14px;gap:9px}
   nav{padding:0 14px}
+  .tab{padding:13px 14px;font-size:13.5px}
   .days{font-size:44px}
   .hero-top{padding:16px}
   .hero-school{margin-left:0;text-align:left;width:100%}
@@ -229,6 +336,27 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
   .stat{min-width:50%;border-bottom:1px solid var(--line)}
   .brand{font-size:16px}
   .sync span{display:none}
+  .chead{padding:13px 14px;gap:10px}
+  .cbody{padding:6px 14px 14px}
+  .logo{width:28px;height:28px}
+  .task{padding:10px 0}
+  .cb{width:22px;height:22px}
+  .setrow{gap:10px}
+  .setbtn{padding:11px 13px}
+}
+
+/* Narrow phones — stack each settings row so the button keeps its full
+   width instead of squeezing the label. */
+@media(max-width:430px){
+  .setrow{flex-wrap:wrap}
+  .setlbl{flex:1 1 100%}
+  .setrow .setbtn{width:100%}
+  .setrow .switch{margin-left:auto}
+  /* Keep the logo rows on one line. The generic rule above stretches
+     buttons to full width, which would turn this 18-row list into a very
+     long scroll and squeeze the school name into three lines. */
+  .logorow .setbtn{width:auto;flex:0 0 auto}
+  .logorow .setlbl{flex:1 1 0}
 }
 </style>
 </head>
@@ -243,11 +371,9 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
       <div class="sync"><div class="dot" id="dot"></div><span id="syncTxt">On this device</span></div>
       <div class="spacer"></div>
       <button class="ghost" id="notify">Remind me</button>
-      <button class="ghost" id="calendar">Calendar</button>
-      <button class="ghost" id="sync">Sync</button>
-      <button class="ghost" id="export">Backup</button>
-      <button class="ghost" id="importBtn">Restore</button>
+      <button class="iconbtn" id="theme" aria-label="Switch between dark and light mode"></button>
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
+  <input type="file" id="logoFile" accept="image/*" style="display:none" />
     </div>
     <nav>
       <button class="tab on" data-p="dash">Dashboard</button>
@@ -255,6 +381,7 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
       <button class="tab" data-p="steps">Project steps</button>
       <button class="tab" data-p="actions">My actions</button>
       <button class="tab" data-p="money">Costs &amp; funding</button>
+      <button class="tab" data-p="settings">Settings</button>
     </nav>
   </header>
 
@@ -264,6 +391,7 @@ td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numer
     <div class="panel" id="p-steps"></div>
     <div class="panel" id="p-actions"></div>
     <div class="panel" id="p-money"></div>
+    <div class="panel" id="p-settings"></div>
   </main>
 </div>
 
@@ -282,7 +410,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.4.1';
+const APP_VERSION = 'v1.7.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -391,11 +519,11 @@ function migrate(d) {
     if (!haveFunding.has(f.name)) { d.funding.push(f); changed = true; }
   });
 
+  if (!d.logos || typeof d.logos !== 'object') { d.logos = {}; changed = true; }
+
   if (d.seedVersion !== SEED_VERSION) { d.seedVersion = SEED_VERSION; changed = true; }
   return changed;
 }
-
-const SYNC_CODE_KEY = 'emba-sync-code';
 
 function setSyncStatus(kind) {
   const dot = $('#dot'), txt = $('#syncTxt');
@@ -423,35 +551,58 @@ function waitForSync(cb, tries = 0) {
   else if (tries < 50) setTimeout(() => waitForSync(cb, tries + 1), 100);
 }
 
-async function connectSync(code, opts = {}) {
+/* Sync connects itself on load — nothing to turn on, nothing to enter.
+   Every device reads and writes the same Firestore document. */
+async function connectSync() {
   if (!window.EmbaSync || !window.EmbaSync.available()) {
-    if (!opts.silent) toast('Sync is not set up yet — see README');
     setSyncStatus('unconfigured');
     return;
   }
   setSyncStatus('connecting');
-  await window.EmbaSync.connect(code, { onRemote: handleRemote, onStatus: setSyncStatus });
+  await window.EmbaSync.connect({ onRemote: handleRemote, onStatus: setSyncStatus });
 }
 
-$('#sync').addEventListener('click', async () => {
-  const existing = localStorage.getItem(SYNC_CODE_KEY) || '';
-  const code = prompt(
-    'Enter a private sync code shared by all your devices (any phrase).\nLeave blank to stop syncing this device.',
-    existing
-  );
-  if (code === null) return;
-  if (!code.trim()) {
-    localStorage.removeItem(SYNC_CODE_KEY);
-    window.EmbaSync?.disconnect();
-    setSyncStatus('off');
-    toast('Sync turned off for this device');
-    return;
+/* ---------------- Theme (dark / light) ----------------
+   Dark is the default. If the user has never chosen, we follow the phone's
+   own setting; once they pick, their choice sticks and stops following it.
+   Applied to <html> rather than <body> so the background is right before
+   the first paint (see the inline script in <head>). */
+const THEME_KEY = 'emba-theme';
+
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') || 'dark';
+}
+
+function applyTheme(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  const isLight = mode === 'light';
+  // Sun when light is active, moon when dark — showing the state, not the action.
+  const btn = $('#theme');
+  if (btn) {
+    btn.textContent = isLight ? '☀' : '☾';
+    btn.title = isLight ? 'Light mode — tap for dark' : 'Dark mode — tap for light';
   }
-  localStorage.setItem(SYNC_CODE_KEY, code.trim());
-  await connectSync(code.trim());
-  if (data) save();
-  toast('Synced this device — enter the same code on your others');
-});
+  // Keep the Android status bar in step with the app.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', isLight ? '#F6F4EF' : '#0B1220');
+  // The Settings control is labelled "Light mode", so it reads as on when
+  // light is the active theme.
+  const sw = $('#themeSwitch');
+  if (sw) {
+    sw.className = 'switch' + (isLight ? ' on' : '');
+    sw.setAttribute('aria-checked', isLight ? 'true' : 'false');
+  }
+}
+
+function toggleTheme() {
+  const next = currentTheme() === 'light' ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+$('#theme').addEventListener('click', toggleTheme);
+window.__toggleTheme = toggleTheme;
+applyTheme(currentTheme());
 
 /* ---------------- Version badge / hard refresh ---------------- */
 $('#ver').textContent = APP_VERSION;
@@ -487,13 +638,11 @@ function start() {
   }
   render();
 
-  const savedCode = localStorage.getItem(SYNC_CODE_KEY);
-  if (savedCode) waitForSync(() => connectSync(savedCode, { silent: true }));
-  else setSyncStatus('off');
+  waitForSync(() => connectSync());
 }
 
 /* ---------------- Backup / restore ---------------- */
-$('#export').addEventListener('click', () => {
+window.__backup = () => {
   if (!data) return;
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -502,9 +651,9 @@ $('#export').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(a.href);
   toast('Backup downloaded');
-});
+};
 
-$('#importBtn').addEventListener('click', () => $('#importFile').click());
+window.__restore = () => $('#importFile').click();
 
 $('#importFile').addEventListener('change', async (e) => {
   const file = e.target.files[0];
@@ -572,7 +721,7 @@ function buildICS() {
   return lines.join('\r\n');
 }
 
-$('#calendar').addEventListener('click', () => {
+window.__calendar = () => {
   if (!data) return;
   const blob = new Blob([buildICS()], { type: 'text/calendar;charset=utf-8' });
   const a = document.createElement('a');
@@ -581,7 +730,7 @@ $('#calendar').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(a.href);
   toast('Calendar file downloaded — import it into your phone calendar');
-});
+};
 
 /* ---------------- Toggle a task ---------------- */
 window.__toggle = (scope, containerId, taskId) => {
@@ -793,6 +942,153 @@ function renderDash() {
     </table></div>`;
 }
 
+/* ---------------- School logos ----------------
+   A school's logo comes from one of two places, in this order:
+
+     1. data.logos[id] — an image you picked in Settings. Held as a data
+        URL, so it lives in your backup and syncs to your other devices
+        like any other field.
+     2. ./logos/<school id>.<ext> — a file sitting in the logos folder.
+        Every common format is tried in turn, so naming the file
+        oxford-said.png works exactly as well as oxford-said.svg.
+
+   Missing both lands on the grey _fallback.svg badge.
+
+   A browser cannot list a directory, which is why step 2 is a probe:
+   ask for each extension and keep whichever one loads. The answer is
+   cached per session, so the misses only ever happen once per school.
+-------------------------------------------------- */
+const LOGO_EXTS = ['svg', 'png', 'webp', 'jpg', 'jpeg', 'avif', 'gif'];
+const LOGO_FALLBACK = 'logos/_fallback.svg';
+const logoFound = {};   // school id -> the folder url that actually loaded
+
+function attachLogo(img, id) {
+  const picked = data && data.logos ? data.logos[id] : null;
+  if (picked) { img.src = picked; return; }
+  if (logoFound[id]) { img.src = logoFound[id]; return; }
+
+  let i = 0;
+  const next = () => {
+    if (i >= LOGO_EXTS.length) {
+      img.onerror = img.onload = null;
+      img.src = LOGO_FALLBACK;
+      return;
+    }
+    const url = 'logos/' + id + '.' + LOGO_EXTS[i++];
+    img.onerror = next;
+    img.onload = () => { img.onerror = img.onload = null; logoFound[id] = url; };
+    img.src = url;
+  };
+  next();
+}
+
+function hydrateLogos(root) {
+  (root || document).querySelectorAll('img[data-logo]')
+    .forEach((img) => attachLogo(img, img.dataset.logo));
+}
+
+/* Where a school's logo is currently coming from, for the Settings list. */
+function logoOrigin(id) {
+  if (data && data.logos && data.logos[id]) return 'picked on a device';
+  if (logoFound[id]) return logoFound[id];
+  return 'logos/' + id + '.*';
+}
+
+/* Anything you pick is redrawn onto a 128x128 canvas before it is stored.
+   A phone photo is a couple of megabytes and the whole sync document has a
+   1 MB ceiling, so keeping the original would break sync the first time you
+   used this. 128px is four times the size the badge is ever drawn at. */
+const LOGO_PX = 128;
+const LOGO_MAX_CHARS = 120000;     // ~88 KB for any single logo
+
+/* The sync document holds ALL your data and Firestore caps it at 1 MB. The
+   tracker itself is about 25 KB, so the logos have to stay well under that
+   ceiling — 18 detailed images could otherwise add up to more than a
+   megabyte and silently break sync for every device at once. */
+const LOGO_BUDGET_CHARS = 600000;  // ~440 KB of logos in total
+
+function logoBytesExcept(skipId) {
+  const all = (data && data.logos) || {};
+  return Object.keys(all).reduce(
+    (n, k) => (k === skipId ? n : n + all[k].length), 0);
+}
+
+function readLogoFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith('image/')) {
+      reject(new Error('not an image')); return;
+    }
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('unreadable'));
+    fr.onload = () => {
+      // A small SVG is already tiny and resolution-independent, so keep it
+      // as it is rather than flattening it to pixels. A big one goes
+      // through the canvas like everything else.
+      if (file.type === 'image/svg+xml' && file.size <= 64 * 1024) {
+        resolve(fr.result); return;
+      }
+      const img = new Image();
+      img.onerror = () => reject(new Error('undecodable'));
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = c.height = LOGO_PX;
+          const ctx = c.getContext('2d');
+          const scale = Math.min(LOGO_PX / img.width, LOGO_PX / img.height) || 1;
+          const w = img.width * scale, h = img.height * scale;
+          ctx.drawImage(img, (LOGO_PX - w) / 2, (LOGO_PX - h) / 2, w, h);
+          resolve(c.toDataURL('image/png'));
+        } catch (e) { reject(e); }
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+let logoTarget = null;
+
+window.__pickLogo = (id) => {
+  logoTarget = id;
+  const inp = $('#logoFile');
+  inp.value = '';          // so re-picking the same file still fires change
+  inp.click();
+};
+
+window.__clearLogo = (id) => {
+  if (!data.logos || !data.logos[id]) return;
+  delete data.logos[id];
+  save();
+  render();
+  toast('Back to the logos folder for this school');
+};
+
+$('#logoFile').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  const id = logoTarget;
+  logoTarget = null;
+  if (!file || !id) return;
+  try {
+    const url = await readLogoFile(file);
+    if (url.length > LOGO_MAX_CHARS) {
+      toast('That image is still too large after resizing');
+      return;
+    }
+    if (logoBytesExcept(id) + url.length > LOGO_BUDGET_CHARS) {
+      toast('No room left for more picked logos — reset one first');
+      return;
+    }
+    data.logos = data.logos || {};
+    data.logos[id] = url;
+    save();
+    render();
+    toast('Logo updated');
+  } catch (err) {
+    console.error('Logo import failed', err);
+    toast('Could not read that file as an image');
+  }
+});
+
 /* ---------------- Schools ---------------- */
 function renderSchools() {
   const order = { URGENT:0, HIGH:1, AMBER:2, STANDARD:3 };
@@ -808,6 +1104,7 @@ function renderSchools() {
         <div class="card ${s.priority === 'URGENT' ? 'urgent' : ''} ${openSet.has(s.id) ? 'open' : ''}">
           <div class="chead" onclick="__card('${s.id}',this)">
             <div class="caret">▶</div>
+            <img class="logo" data-logo="${s.id}" alt="">
             <div style="min-width:0">
               <div class="cname">${esc(s.name)}</div>
               <div class="cmeta">
@@ -848,6 +1145,8 @@ function renderSchools() {
         </div>`;
       }).join('')}
     </div>`;
+
+  hydrateLogos($('#p-schools'));
 }
 
 /* ---------------- Steps ---------------- */
@@ -931,6 +1230,91 @@ function renderMoney() {
     </table></div>`;
 }
 
+/* ---------------- Settings ---------------- */
+function renderSettings() {
+  const light = currentTheme() === 'light';
+  const schools = (data.schools || []).slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+  $('#p-settings').innerHTML = `
+    <div class="sechead"><h2>Settings</h2><span class="c">appearance, data and backups</span></div>
+
+    <div class="set">
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Light mode</b>
+          <span>Switch between the dark and light colour scheme. Also available from the ${'☾'}/${'☀'} button in the header.</span>
+        </div>
+        <button class="switch${light ? ' on' : ''}" id="themeSwitch"
+                role="switch" aria-checked="${light ? 'true' : 'false'}"
+                aria-label="Light mode" onclick="__toggleTheme()"></button>
+      </div>
+    </div>
+
+    <div class="set">
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Add deadlines to your calendar</b>
+          <span>Downloads an .ics file with every school deadline and any outstanding action that has a date. Import it into your phone calendar.</span>
+        </div>
+        <button class="setbtn" onclick="__calendar()">Calendar</button>
+      </div>
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Back up your tracker</b>
+          <span>Saves everything — ticks, notes, edited deadlines, custom tasks — as a JSON file you keep.</span>
+        </div>
+        <button class="setbtn" onclick="__backup()">Backup</button>
+      </div>
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Restore from a backup</b>
+          <span>Replaces everything currently in this browser with the contents of a backup file. You will be asked to confirm first.</span>
+        </div>
+        <button class="setbtn" onclick="__restore()">Restore</button>
+      </div>
+    </div>
+
+    <div class="set">
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Version ${esc(APP_VERSION)}</b>
+          <span>Tap the version badge in the header to force a refresh if the app looks out of date. Your data is never touched by that.</span>
+        </div>
+      </div>
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Sync</b>
+          <span>Automatic. Every device running this app shares one Firestore document — there is nothing to switch on and no code to enter. Current status is shown by the dot in the header.</span>
+        </div>
+      </div>
+    </div>`;
+
+  $('#p-settings').insertAdjacentHTML('beforeend', `
+    <div class="set">
+      <div class="setrow">
+        <div class="setlbl">
+          <b>School logos</b>
+          <span>Two ways to set one. Drop an image into the logos folder named after the school — svg, png, webp, jpg, jpeg, avif and gif all work — or tap Choose to pick one from this device. A picked image is resized to 128px, saved with your data and synced to your other devices; a folder image is not, so it has to be added to each device's copy of the app.</span>
+        </div>
+      </div>
+      ${schools.map((s) => {
+        const picked = !!(data.logos && data.logos[s.id]);
+        return `
+        <div class="setrow logorow">
+          <img class="logo" data-logo="${s.id}" alt="">
+          <div class="setlbl">
+            <b>${esc(s.name)}</b>
+            <span class="logosrc">${esc(logoOrigin(s.id))}</span>
+          </div>
+          <button class="setbtn" onclick="__pickLogo('${s.id}')">Choose</button>
+          ${picked ? `<button class="setbtn" onclick="__clearLogo('${s.id}')">Reset</button>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`);
+
+  hydrateLogos($('#p-settings'));
+}
+
 /* ---------------- Render ---------------- */
 function render() {
   if (!data) return;
@@ -939,6 +1323,7 @@ function render() {
   renderSteps();
   renderActions();
   renderMoney();
+  renderSettings();
 }
 
 /* ---------------- Reminders ----------------

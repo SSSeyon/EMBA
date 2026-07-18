@@ -3,20 +3,18 @@
    ES module (only loads over http/https — harmless no-op on file://,
    since browsers refuse to load <script type="module"> from disk).
 
-   How it works: no accounts, no login screen, no sign-in of any kind.
-   You pick a private "sync code" once (the header "Sync" button) and
-   enter the *same* code on every device you want to share this tracker
-   with. The code is SHA-256 hashed into a Firestore document ID, so two
-   devices with the same code read and write the same document.
+   How it works: nothing to set up, nothing to enter. Every device that
+   opens this app reads and writes the same single Firestore document.
+   No accounts, no login, no sync code — open it and it syncs.
 
    SECURITY NOTE: there is NO authentication and NO access control here,
    by deliberate choice. The Firestore rule this pairs with is
-   `allow read, write: if true` (README.md → "Setting up Sync"), i.e. the
-   database is open to anyone who knows the project ID — and the config
-   below is public by nature. What keeps your data obscure is only that
-   the document ID is a SHA-256 hash of your sync code, so nobody
-   stumbles onto it by accident. Nothing prevents a determined reader.
-   Fine for an admissions tracker; do not store anything sensitive here.
+   `allow read, write: if true` (README.md → "Setting up Sync"), and the
+   document ID below is a fixed, non-secret string. Anyone who knows the
+   project ID — which is public, since the config below ships in the
+   client — can read or overwrite this document. Nothing is hidden and
+   nothing is protected. Fine for an admissions tracker; do not put
+   anything sensitive in here.
 
    If firebaseConfig below is left on REPLACE_ME placeholders, this file
    does nothing: EmbaSync.available() returns false and the app quietly
@@ -35,19 +33,18 @@ const firebaseConfig = {
   appId: '1:526804790379:web:9eb24b55167643b866d52e',
 };
 
+// The one document every device shares. Not a secret, not derived from
+// anything — just a fixed name.
+const DOC_ID = 'emba-tracker';
+
 function configured() {
   return !!firebaseConfig.apiKey && firebaseConfig.apiKey !== 'REPLACE_ME';
-}
-
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 let app, db;
 let initPromise = null;
 let unsub = null;
-let docId = null;
+let connected = false;
 
 function ensureInit() {
   if (initPromise) return initPromise;
@@ -70,29 +67,29 @@ window.EmbaSync = {
 
   // onRemote(payload) fires whenever the shared document changes (including
   // our own writes echoing back). onStatus('connecting'|'synced'|'error'|'unconfigured').
-  async connect(code, { onRemote, onStatus } = {}) {
+  async connect({ onRemote, onStatus } = {}) {
     onStatus?.('connecting');
     const ok = await ensureInit();
     if (!ok) { onStatus?.('unconfigured'); return false; }
-    docId = await sha256Hex('emba-tracker:' + code);
     if (unsub) unsub();
     unsub = onSnapshot(
-      doc(db, 'syncs', docId),
+      doc(db, 'syncs', DOC_ID),
       (snap) => { if (snap.exists()) onRemote?.(snap.data()); onStatus?.('synced'); },
       (err) => { console.error('Sync listen failed', err); onStatus?.('error'); }
     );
+    connected = true;
     return true;
   },
 
   disconnect() {
     if (unsub) { unsub(); unsub = null; }
-    docId = null;
+    connected = false;
   },
 
   async push(payload) {
-    if (!docId || !db) return;
+    if (!connected || !db) return;
     try {
-      await setDoc(doc(db, 'syncs', docId), payload);
+      await setDoc(doc(db, 'syncs', DOC_ID), payload);
     } catch (e) {
       console.error('Sync push failed', e);
     }

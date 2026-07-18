@@ -22,9 +22,10 @@ file system, or drop it in a repo and turn on GitHub Pages.
 | `icon-maskable-192.png`, `icon-maskable-512.png` | Android adaptive icons |
 | `apple-touch-icon.png` | iOS home-screen icon |
 | `favicon-32.png` | Browser tab icon |
+| `logos/` | One badge per school, shown in front of its name — see `logos/README.md` |
 | `README.md` | This file |
 
-All files sit flat in the repo root. Push the whole folder.
+Everything except `logos/` sits flat in the repo root. Push the whole folder.
 
 ---
 
@@ -89,31 +90,24 @@ occasional eviction of unused site storage) wipes localStorage.
 
 ## Sync across devices
 
-Sync is optional and off until you turn it on — it needs a free Firebase
-project, which is not set up yet in this codebase (see "Setting up Sync"
-below). Until then, the **Sync** button will just tell you it isn't
-configured.
+**There is nothing to turn on and nothing to enter.** Open the app on any
+device and it syncs. No login, no sync code, no Sync button — every device
+reads and writes the same Firestore document automatically on load.
 
-Once set up, there is still **no login screen** — instead:
-
-1. Click **Sync** in the header on your first device.
-2. Enter any private phrase as your **sync code** (e.g. `hunga-emba-2027`).
-   Not a real password — just something the schools' admissions staff won't
-   guess.
-3. Click **Sync** on your other devices/browsers and enter the *same* code.
-
-All devices with the same code read and write the same document in Firestore
-in real time — tick a task on your phone, it appears on your laptop within a
-second or two. The header dot/text shows **Synced**, **Syncing…**, **Sync
-not set up**, or **Sync error**.
+Tick a task on your phone and it appears on your laptop within a second or
+two. The header dot/text shows **Synced**, **Syncing…**, **Sync not set
+up**, or **Sync error**.
 
 **How it works under the hood:** there is no sign-in at all — the app talks
-to Firestore unauthenticated. Your sync code is SHA-256 hashed client-side
-into a Firestore document ID — two devices with the same code land on the
-same document. The whole `data` object is written on every save, with an
-`updatedAt` timestamp; if two devices save close together, the most recent
-write wins and the other simply gets overwritten next sync (fine for a
-single-user tracker, not built for simultaneous multi-editor use).
+to Firestore unauthenticated, and every client uses the same fixed document
+(`syncs/emba-tracker`). The whole `data` object is written on every save,
+with an `updatedAt` timestamp; if two devices save close together, the most
+recent write wins and the other simply gets overwritten next sync (fine for
+a single-user tracker, not built for simultaneous multi-editor use).
+
+Sync degrades gracefully: opening `index.html` straight from disk over
+`file://` skips it entirely (browsers won't load ES modules from disk), and
+the app runs localStorage-only with no errors.
 
 **Security, stated plainly:** this database is deliberately open. The
 Firestore rule is `allow read, write: if true` — no authentication, no
@@ -122,16 +116,17 @@ ID can read or write it.
 
 The Firebase config in `sync.js` is not a secret (configs are meant to be
 public, and this one ships in a GitHub Pages site), so the project ID is
-effectively public too. In practice your data is obscure rather than
-protected: your document's ID is a SHA-256 hash of your sync code, so nobody
-stumbles onto it — but nothing stops them if they try.
+effectively public too. The document ID is the fixed string `emba-tracker`.
+Nothing here is hidden and nothing is protected — that is the deliberate
+tradeoff for having no setup step at all.
 
 This is a personal admissions tracker, not sensitive records, and the choice
-was made knowingly for simplicity. If that calculus ever changes, the two
-upgrades in order of effort are: (1) scope the rule to
-`match /syncs/{docId}` so only that collection is reachable, and (2) turn on
-Firebase Anonymous auth — which is invisible, with no login screen — and add
-`request.auth != null` to the rule.
+was made knowingly for simplicity. If that calculus ever changes, the
+upgrades in order of effort are: (1) change `DOC_ID` in `sync.js` to a long
+random string, which makes the document unguessable without adding any user
+friction; (2) scope the rule to `match /syncs/{docId}` so only that
+collection is reachable; (3) turn on Firebase Anonymous auth — invisible,
+no login screen — and add `request.auth != null` to the rule.
 
 ### Setting up Sync
 
@@ -164,6 +159,30 @@ returns false and the app stays exactly as it is today.
 the app never calls it.
 
 ---
+
+## Settings and appearance
+
+The **Settings** tab holds everything that isn't day-to-day tracking:
+
+- **Light mode** — switches between the dark and light colour schemes.
+- **Calendar** — downloads an `.ics` of every deadline.
+- **Backup** / **Restore** — save and reload your tracker as a JSON file.
+
+The header keeps only what you reach for constantly: the version badge (tap
+to force a refresh), the sync dot, **Remind me**, and a ☾/☀ button that does
+the same job as the Settings toggle.
+
+**Dark is the default.** On first run the app follows your phone's own
+light/dark setting; the moment you use either toggle, your choice is saved
+to `localStorage` under `emba-theme` and it stops following the system.
+
+Every colour is a CSS custom property defined once at the top of
+`index.html`, in a `:root` block for dark and a `:root[data-theme="light"]`
+block for light. **If you add a rule with a literal hex colour in it, you
+will break one of the two themes** — add a variable instead.
+
+A small inline script in `<head>` applies the saved theme before the first
+paint, so a light-mode user never sees a dark flash on load.
 
 ## Installing to your home screen
 

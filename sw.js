@@ -10,9 +10,11 @@
    returning devices fetch the new files instead of serving stale ones.
    ---------------------------------------------------------------- */
 
-const CACHE_VERSION = 'emba-v1.4.1';
+const CACHE_VERSION = 'emba-v1.7.0';
 
-// App shell: local files that make up the tracker itself.
+// App shell: local files that make up the tracker itself. These must all
+// exist — addAll() is all-or-nothing, so one 404 here means no offline
+// cache at all.
 const SHELL = [
   './',
   './index.html',
@@ -24,13 +26,50 @@ const SHELL = [
   './icon-maskable-192.png',
   './icon-maskable-512.png',
   './apple-touch-icon.png',
-  './favicon-32.png'
+  './favicon-32.png',
+  './logos/_fallback.svg'
 ];
+
+// School logos are deliberately NOT in SHELL. A logo can be any format —
+// oxford-said.png, lbs-emba.webp — and the app finds it by asking for each
+// extension in turn, so most of these requests are meant to 404. Listing
+// them in SHELL would fail the whole install. Instead they are cached
+// opportunistically: try each one, ignore every miss, and let the fetch
+// handler below pick up whatever the app actually loads.
+const LOGO_IDS = [
+  'cambridge-emba', 'insead-gemba', 'imd-emba', 'oxford-said', 'lbs-emba',
+  'trium', 'iese-gemba', 'booth-emba', 'cambridge-global', 'wharton-emba',
+  'columbia-lbs', 'kellogg-emba', 'mit-sloan', 'hec-paris', 'escp-emba',
+  'sda-bocconi', 'imperial-emba', 'manchester-gemba'
+];
+const LOGO_EXTS = ['svg', 'png', 'webp', 'jpg', 'jpeg', 'avif', 'gif'];
+
+// Walk one school's extensions in series and stop at the first hit, so the
+// common case is a single request per school rather than seven. Schools run
+// in parallel with each other; firing all 126 combinations at once would
+// hammer the server on every install.
+function cacheSchoolLogo(cache, id) {
+  return LOGO_EXTS.reduce(
+    (chain, ext) => chain.then((done) => {
+      if (done) return true;
+      const url = './logos/' + id + '.' + ext;
+      return fetch(url)
+        .then((res) => (res.ok ? cache.put(url, res).then(() => true) : false))
+        .catch(() => false);
+    }),
+    Promise.resolve(false)
+  );
+}
+
+function cacheLogos(cache) {
+  return Promise.all(LOGO_IDS.map((id) => cacheSchoolLogo(cache, id)));
+}
 
 // ---- Install: pre-cache the shell ----
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL))
+    caches.open(CACHE_VERSION)
+      .then((cache) => cache.addAll(SHELL).then(() => cacheLogos(cache)))
       .then(() => self.skipWaiting())
   );
 });
@@ -71,10 +110,16 @@ self.addEventListener('fetch', (event) => {
   // 2. Same-origin app shell — network-first, fall back to cache offline.
   //    This means an online device always gets your latest deploy, while
   //    an offline device still opens from cache.
+  //
+  //    Only successful responses are stored. The logo probe deliberately
+  //    asks for files that do not exist, and caching those 404s would keep
+  //    serving them after you finally add the real image.
   event.respondWith(
     fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
+      if (res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
+      }
       return res;
     }).catch(() =>
       caches.match(req).then((hit) => hit || caches.match('./index.html'))
