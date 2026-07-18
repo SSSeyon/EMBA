@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>EMBA 2027 — Admissions Tracker</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0B1220" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="EMBA 2027" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0B1220;
+  --ink-2:#131C2B;
+  --ink-3:#1C2739;
+  --line:#28344A;
+  --paper:#E8EAED;
+  --muted:#8A97AC;
+  --gold:#C8922A;
+  --gold-lo:#3A2E14;
+  --red:#E0574A;
+  --red-lo:#3A1A17;
+  --amber:#D9A441;
+  --amber-lo:#382C13;
+  --green:#4FA97E;
+  --green-lo:#122E22;
+  --blue:#5B8DBE;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--ink);color:var(--paper);}
+body{
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+.display{font-family:'Fraunces',Georgia,serif;}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+a{color:var(--blue)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- Shell ---------- */
+header{
+  position:sticky;top:0;z-index:20;background:rgba(11,18,32,.92);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+}
+.hwrap{max-width:1240px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px}
+.brand{font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.brand span{color:var(--gold)}
+.sync{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.dot.off{background:var(--muted)}
+.spacer{flex:1}
+.ghost{font-size:13px;color:var(--muted);padding:7px 12px;border:1px solid var(--line);border-radius:8px}
+.ghost:hover{color:var(--paper);border-color:var(--muted)}
+
+nav{max-width:1240px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+.tab{
+  padding:11px 15px;font-size:13px;font-weight:500;color:var(--muted);
+  border-bottom:2px solid transparent;white-space:nowrap;
+}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.tab:hover{color:var(--paper)}
+
+main{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
+.panel{display:none}
+.panel.on{display:block}
+
+/* ---------- Countdown hero ---------- */
+.hero{
+  border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:24px;
+  background:linear-gradient(180deg,var(--ink-2),var(--ink));
+}
+.hero-top{padding:20px 22px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.11em;color:var(--muted)}
+.days{font-family:'Fraunces',serif;font-size:56px;font-weight:700;line-height:.95;letter-spacing:-.03em}
+.days.crit{color:var(--red)}
+.days.warn{color:var(--amber)}
+.days-label{font-size:13px;color:var(--muted);margin-top:6px}
+.hero-school{margin-left:auto;text-align:right}
+.hero-school .n{font-size:15px;font-weight:600}
+.hero-school .d{font-size:12px;color:var(--muted);margin-top:3px}
+.hero-bar{display:flex;border-top:1px solid var(--line)}
+.stat{flex:1;padding:13px 16px;border-right:1px solid var(--line);min-width:0}
+.stat:last-child{border-right:none}
+.stat .k{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.stat .v{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+
+/* ---------- Progress ---------- */
+.pwrap{height:5px;background:var(--ink-3);border-radius:3px;overflow:hidden}
+.pbar{height:100%;background:var(--gold);border-radius:3px;transition:width .3s ease}
+.pbar.done{background:var(--green)}
+
+/* ---------- Section ---------- */
+.sechead{display:flex;align-items:baseline;gap:12px;margin:28px 0 12px}
+.sechead h2{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:-.01em}
+.sechead .c{font-size:12px;color:var(--muted)}
+.sechead:first-child{margin-top:0}
+
+/* ---------- Cards ---------- */
+.grid{display:grid;gap:12px}
+.card{
+  border:1px solid var(--line);border-radius:12px;background:var(--ink-2);overflow:hidden;
+}
+.card.urgent{border-color:#5A2B26}
+.chead{padding:14px 16px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;user-select:none}
+.chead:hover{background:var(--ink-3)}
+.cname{font-weight:600;font-size:15px;letter-spacing:-.01em}
+.cmeta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:5px 10px}
+.cright{margin-left:auto;text-align:right;flex-shrink:0}
+.cdays{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.cdays.crit{color:var(--red)}
+.cdays.warn{color:var(--amber)}
+.cdays.ok{color:var(--muted)}
+.cprog{font-size:11px;color:var(--muted);margin-top:3px}
+.caret{color:var(--muted);font-size:11px;transition:transform .2s;flex-shrink:0;margin-top:4px}
+.card.open .caret{transform:rotate(90deg)}
+.cbody{display:none;border-top:1px solid var(--line);padding:6px 16px 14px}
+.card.open .cbody{display:block}
+.cinfo{font-size:12px;color:var(--muted);padding:10px 0;line-height:1.65;border-bottom:1px solid var(--line);margin-bottom:6px}
+.cinfo b{color:var(--paper);font-weight:500}
+
+/* ---------- Pills ---------- */
+.pill{
+  display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.07em;padding:2px 7px;border-radius:4px;white-space:nowrap;
+}
+.p-URGENT{background:var(--red-lo);color:var(--red)}
+.p-HIGH{background:var(--amber-lo);color:var(--amber)}
+.p-AMBER{background:var(--amber-lo);color:var(--amber)}
+.p-STANDARD{background:var(--ink-3);color:var(--muted)}
+.w-Green{background:var(--green-lo);color:var(--green)}
+.w-Amber{background:var(--amber-lo);color:var(--amber)}
+.w-Red{background:var(--red-lo);color:var(--red)}
+.flag{background:var(--gold-lo);color:var(--gold);font-size:11px;padding:6px 9px;border-radius:6px;margin:8px 0;display:block;line-height:1.5}
+.est{color:var(--muted);font-weight:400}
+.est::before{content:'~';margin-right:1px;opacity:.7}
+.banner{
+  border:1px solid var(--gold);background:var(--gold-lo);border-radius:10px;
+  padding:12px 14px;margin-bottom:18px;font-size:12.5px;line-height:1.6;color:#E8D6AC;
+}
+.banner b{color:var(--gold)}
+
+/* ---------- Tasks ---------- */
+.task{display:flex;align-items:flex-start;gap:11px;padding:8px 0;font-size:14px}
+.task+.task{border-top:1px solid rgba(40,52,74,.5)}
+.cb{
+  width:18px;height:18px;border:1.5px solid var(--muted);border-radius:5px;
+  flex-shrink:0;margin-top:1px;display:grid;place-items:center;
+  transition:all .15s;background:transparent;
+}
+.cb:hover{border-color:var(--gold)}
+.cb.on{background:var(--green);border-color:var(--green)}
+.cb.on::after{content:'✓';color:#0B1220;font-size:12px;font-weight:700;line-height:1}
+.tlabel{flex:1;min-width:0;line-height:1.45}
+.task.done .tlabel{color:var(--muted);text-decoration:line-through}
+.tdue{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);
+  flex-shrink:0;margin-top:2px;font-variant-numeric:tabular-nums;
+}
+.tdue.crit{color:var(--red)}
+.tdue.warn{color:var(--amber)}
+.task.done .tdue{color:var(--muted);opacity:.5}
+
+/* ---------- Table ---------- */
+.tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:620px}
+th{
+  background:var(--ink-3);padding:10px 13px;text-align:left;font-size:10px;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;white-space:nowrap;
+}
+td{padding:11px 13px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:hover{background:var(--ink-2)}
+td.num{font-family:'IBM Plex Mono',monospace;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ---------- Empty ---------- */
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:12px}
+
+/* ---------- Toast ---------- */
+#toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120%);
+  background:var(--ink-3);border:1px solid var(--line);border-radius:10px;
+  padding:11px 18px;font-size:13px;z-index:50;transition:transform .25s ease;
+  box-shadow:0 8px 28px rgba(0,0,0,.5);max-width:calc(100vw - 40px);
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@media(max-width:640px){
+  main{padding:18px 14px 70px}
+  .hwrap{padding:12px 14px;gap:10px}
+  nav{padding:0 14px}
+  .days{font-size:44px}
+  .hero-top{padding:16px}
+  .hero-school{margin-left:0;text-align:left;width:100%}
+  .hero-bar{flex-wrap:wrap}
+  .stat{min-width:50%;border-bottom:1px solid var(--line)}
+  .brand{font-size:16px}
+  .sync span{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header>
+    <div class="hwrap">
+      <div class="brand">EMBA <span>2027</span></div>
+      <div class="sync"><div class="dot" id="dot"></div><span id="syncTxt">On this device</span></div>
+      <div class="spacer"></div>
+      <button class="ghost" id="notify">Remind me</button>
+      <button class="ghost" id="export">Backup</button>
+      <button class="ghost" id="importBtn">Restore</button>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none" />
+    </div>
+    <nav>
+      <button class="tab on" data-p="dash">Dashboard</button>
+      <button class="tab" data-p="schools">Schools</button>
+      <button class="tab" data-p="steps">Project steps</button>
+      <button class="tab" data-p="actions">My actions</button>
+      <button class="tab" data-p="money">Costs &amp; funding</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="panel on" id="p-dash"></div>
+    <div class="panel" id="p-schools"></div>
+    <div class="panel" id="p-steps"></div>
+    <div class="panel" id="p-actions"></div>
+    <div class="panel" id="p-money"></div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script src="seed.js"></script>
+<script>
+/* ================================================================
+   Storage — everything lives in this browser's localStorage under
+   one key. No accounts, no server. Use Backup / Restore to move
+   your data between browsers or devices.
+   ================================================================ */
+const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
+
+/* ---------------- State ---------------- */
+let data = null;
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+/* ---------------- Utils ---------------- */
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function today() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+
+function daysTo(iso) {
+  if (!iso) return null;
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return null;
+  return Math.round((d - today()) / 86400000);
+}
+
+function dueClass(n) {
+  if (n === null) return '';
+  if (n < 0)  return 'crit';
+  if (n <= 14) return 'crit';
+  if (n <= 45) return 'warn';
+  return 'ok';
+}
+
+function dueText(n) {
+  if (n === null) return '—';
+  if (n < 0)   return `${Math.abs(n)}d over`;
+  if (n === 0) return 'Today';
+  if (n === 1) return '1 day';
+  return `${n} days`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+const usd = (n) => '$' + Number(n || 0).toLocaleString('en-GB');
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function pct(tasks) {
+  if (!tasks || !tasks.length) return 0;
+  return Math.round(tasks.filter(t => t.done).length / tasks.length * 100);
+}
+
+/* ---------------- Load, seed, persist ---------------- */
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Could not read saved data', e);
+  }
+  return null;
+}
+
+function save() {
+  if (!data) return;
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error('Save failed', e);
+    $('#dot').className = 'dot off';
+    toast('Could not save — browser storage is full or blocked');
+  }
+}
+
+function start() {
+  data = loadData();
+  if (!data) {
+    data = buildSeed();
+    save();
+    toast('Tracker set up with your 18 schools');
+  }
+  render();
+}
+
+/* ---------------- Backup / restore ---------------- */
+$('#export').addEventListener('click', () => {
+  if (!data) return;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `emba-tracker-backup-${today().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Backup downloaded');
+});
+
+$('#importBtn').addEventListener('click', () => $('#importFile').click());
+
+$('#importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    if (!Array.isArray(parsed.schools) || !Array.isArray(parsed.actions)) {
+      toast('That file is not an EMBA tracker backup'); return;
+    }
+    if (!confirm('Replace everything in this browser with the backup file? Your current ticks will be overwritten.')) return;
+    data = parsed;
+    save();
+    render();
+    toast('Backup restored');
+  } catch (err) {
+    console.error('Restore failed', err);
+    toast('Could not read that file');
+  }
+});
+
+/* ---------------- Toggle a task ---------------- */
+window.__toggle = (scope, containerId, taskId) => {
+  if (!data) return;
+  let arr;
+  if (scope === 'actions') {
+    arr = data.actions;
+  } else {
+    const parent = (data[scope] || []).find(x => x.id === containerId);
+    if (!parent) return;
+    arr = parent.tasks;
+  }
+  const task = (arr || []).find(t => t.id === taskId);
+  if (!task) return;
+  task.done = !task.done;
+  render();
+  save();
+};
+
+/* ---------------- Tabs ---------------- */
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.tab').forEach(t => t.classList.remove('on'));
+    $$('.panel').forEach(p => p.classList.remove('on'));
+    tab.classList.add('on');
+    $('#p-' + tab.dataset.p).classList.add('on');
+    window.scrollTo({ top: 0 });
+  });
+});
+
+/* Keep cards open across re-renders */
+const openSet = new Set();
+window.__card = (id, el) => {
+  const card = el.closest('.card');
+  card.classList.toggle('open');
+  card.classList.contains('open') ? openSet.add(id) : openSet.delete(id);
+};
+
+/* ---------------- Render helpers ---------------- */
+function taskRow(scope, containerId, t) {
+  const n = daysTo(t.due);
+  const cls = t.done ? '' : dueClass(n);
+  return `
+    <div class="task ${t.done ? 'done' : ''}">
+      <button class="cb ${t.done ? 'on' : ''}"
+              aria-label="${t.done ? 'Mark not done' : 'Mark done'}: ${esc(t.label)}"
+              onclick="__toggle('${scope}','${containerId}','${t.id}')"></button>
+      <div class="tlabel">${esc(t.label)}</div>
+      ${t.due ? `<div class="tdue ${cls}">${dueText(n)}</div>` : ''}
+    </div>`;
+}
+
+/* ---------------- Dashboard ---------------- */
+function renderDash() {
+  const schools = data.schools || [];
+  const steps   = data.steps   || [];
+  const actions = data.actions || [];
+
+  const live = schools
+    .map(s => ({ s, n: daysTo(s.deadline), done: pct(s.tasks) === 100 }))
+    .filter(x => x.n !== null && !x.done)
+    .sort((a, b) => a.n - b.n);
+  const next = live[0];
+
+  const allTasks = [
+    ...schools.flatMap(s => s.tasks || []),
+    ...steps.flatMap(s => s.tasks || []),
+    ...actions
+  ];
+  const doneCount = allTasks.filter(t => t.done).length;
+  const overall = allTasks.length ? Math.round(doneCount / allTasks.length * 100) : 0;
+
+  const submitted = schools.filter(s => (s.tasks || []).find(t => t.id === 'submit')?.done).length;
+
+  // Due in next 14 days, not done
+  const soon = [];
+  schools.forEach(s => (s.tasks || []).forEach(t => {
+    const n = daysTo(t.due);
+    if (!t.done && n !== null && n <= 14) soon.push({ n, label: t.label, ctx: s.name, scope:'schools', cid:s.id, t });
+  }));
+  steps.forEach(s => (s.tasks || []).forEach(t => {
+    const n = daysTo(t.due);
+    if (!t.done && n !== null && n <= 14) soon.push({ n, label: t.label, ctx: 'Step ' + s.num, scope:'steps', cid:s.id, t });
+  }));
+  actions.forEach(t => {
+    const n = daysTo(t.due);
+    if (!t.done && n !== null && n <= 14) soon.push({ n, label: t.label, ctx: 'My actions', scope:'actions', cid:'', t });
+  });
+  soon.sort((a, b) => a.n - b.n);
+
+  const heroDays = next ? next.n : null;
+  const heroCls  = heroDays === null ? '' : (heroDays <= 14 ? 'crit' : heroDays <= 45 ? 'warn' : '');
+
+  const estCount = schools.filter(s => s.estimated).length;
+
+  $('#p-dash').innerHTML = `
+    ${estCount ? `<div class="banner">
+      <b>${estCount} of ${schools.length} deadlines are estimates, not confirmed dates.</b>
+      They were derived from “TBC” and “rolling” entries in your research, so every countdown
+      marked <span class="est" style="color:inherit">like this</span> could be wrong by weeks.
+      Confirm the real dates with each admissions office and correct them here before you plan around them.
+    </div>` : ''}
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow">Next deadline</div>
+          <div class="days ${heroCls}">${next ? (next.n < 0 ? Math.abs(next.n) : next.n) : '—'}</div>
+          <div class="days-label">${next ? (next.n < 0 ? 'days overdue' : next.n === 1 ? 'day remaining' : 'days remaining') + (next.s.estimated ? ' (estimated)' : '') : 'nothing outstanding'}</div>
+        </div>
+        ${next ? `
+          <div class="hero-school">
+            <div class="n">${esc(next.s.name)}</div>
+            <div class="d ${next.s.estimated ? 'est' : ''}">${fmtDate(next.s.deadline)} · ${esc(next.s.deadlineNote || '')}</div>
+            <div style="margin-top:8px"><span class="pill p-${next.s.priority}">${next.s.priority}</span></div>
+          </div>` : ''}
+      </div>
+      <div class="hero-bar">
+        <div class="stat"><div class="k">Overall progress</div><div class="v">${overall}%</div></div>
+        <div class="stat"><div class="k">Tasks done</div><div class="v">${doneCount}<span style="color:var(--muted);font-size:13px">/${allTasks.length}</span></div></div>
+        <div class="stat"><div class="k">Applications sent</div><div class="v">${submitted}<span style="color:var(--muted);font-size:13px">/18</span></div></div>
+        <div class="stat"><div class="k">Due in 14 days</div><div class="v" style="color:${soon.length ? 'var(--red)' : 'var(--paper)'}">${soon.length}</div></div>
+      </div>
+    </div>
+
+    <div class="sechead"><h2>Due in the next 14 days</h2><span class="c">${soon.length} outstanding</span></div>
+    ${soon.length ? `<div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
+      ${soon.map(x => `
+        <div class="task">
+          <button class="cb" aria-label="Mark done: ${esc(x.label)}"
+                  onclick="__toggle('${x.scope}','${x.cid}','${x.t.id}')"></button>
+          <div class="tlabel">${esc(x.label)}
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(x.ctx)}</div>
+          </div>
+          <div class="tdue ${dueClass(x.n)}">${dueText(x.n)}</div>
+        </div>`).join('')}
+    </div></div>` : `<div class="empty">Nothing due in the next fortnight. Work ahead on Step 5c.</div>`}
+
+    <div class="sechead"><h2>Deadline runway</h2><span class="c">by submission date</span></div>
+    <div class="tscroll"><table>
+      <thead><tr><th>School</th><th>Priority</th><th>Deadline</th><th>Countdown</th><th>Progress</th></tr></thead>
+      <tbody>
+        ${schools.slice().sort((a,b) => (daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9)).map(s => {
+          const n = daysTo(s.deadline), p = pct(s.tasks);
+          return `<tr>
+            <td style="font-weight:500">${esc(s.name)}</td>
+            <td><span class="pill p-${s.priority}">${s.priority}</span></td>
+            <td class="num ${s.estimated ? 'est' : ''}" style="color:var(--muted)">${fmtDate(s.deadline)}</td>
+            <td class="num ${p === 100 ? '' : dueClass(n)} ${s.estimated ? 'est' : ''}">${p === 100 ? 'Sent' : dueText(n)}</td>
+            <td style="min-width:120px">
+              <div class="pwrap"><div class="pbar ${p === 100 ? 'done' : ''}" style="width:${p}%"></div></div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px" class="mono">${p}%</div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+/* ---------------- Schools ---------------- */
+function renderSchools() {
+  const order = { URGENT:0, HIGH:1, AMBER:2, STANDARD:3 };
+  const schools = (data.schools || []).slice().sort((a, b) =>
+    (order[a.priority] - order[b.priority]) || ((daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9)));
+
+  $('#p-schools').innerHTML = `
+    <div class="sechead"><h2>18 schools</h2><span class="c">tap a school to open its checklist</span></div>
+    <div class="grid">
+      ${schools.map(s => {
+        const n = daysTo(s.deadline), p = pct(s.tasks);
+        return `
+        <div class="card ${s.priority === 'URGENT' ? 'urgent' : ''} ${openSet.has(s.id) ? 'open' : ''}">
+          <div class="chead" onclick="__card('${s.id}',this)">
+            <div class="caret">▶</div>
+            <div style="min-width:0">
+              <div class="cname">${esc(s.name)}</div>
+              <div class="cmeta">
+                <span class="pill p-${s.priority}">${s.priority}</span>
+                <span class="pill w-${s.waiver}">${s.waiver} waiver</span>
+                <span>${esc(s.geo)}</span>
+                <span class="mono">${usd(s.totalUsd)}</span>
+              </div>
+            </div>
+            <div class="cright">
+              <div class="cdays ${p === 100 ? 'ok' : dueClass(n)} ${s.estimated ? 'est' : ''}">${p === 100 ? 'Sent' : dueText(n)}</div>
+              <div class="cprog">${p}% · ${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length}</div>
+            </div>
+          </div>
+          <div class="cbody">
+            <div class="cinfo">
+              <b>Deadline:</b> ${fmtDate(s.deadline)} ${s.estimated ? '<span class="est">(estimated)</span>' : '<span style="color:var(--green)">(confirmed)</span>'} — ${esc(s.deadlineNote || '')}<br>
+              <b>Starts:</b> ${esc(s.start)} · ${esc(s.duration)}<br>
+              <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} (${usd(s.tuitionUsd)}) · <b>All-in:</b> ${usd(s.totalUsd)}<br>
+              <b>Waiver:</b> ${esc(s.waiverNote)}<br>
+              <b>Scholarship:</b> ${esc(s.scholarship)}<br>
+              <b>Apply for funding:</b> ${esc(s.scholarshipTiming)}
+            </div>
+            ${s.flag ? `<div class="flag">⚑ ${esc(s.flag)}</div>` : ''}
+            ${(s.tasks || []).map(t => taskRow('schools', s.id, t)).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ---------------- Steps ---------------- */
+function renderSteps() {
+  const steps = data.steps || [];
+  $('#p-steps').innerHTML = `
+    <div class="sechead"><h2>Project steps</h2><span class="c">${steps.filter(s => pct(s.tasks) === 100).length}/${steps.length} complete</span></div>
+    <div class="grid">
+      ${steps.map(s => {
+        const p = pct(s.tasks);
+        return `
+        <div class="card ${openSet.has(s.id) ? 'open' : ''}">
+          <div class="chead" onclick="__card('${s.id}',this)">
+            <div class="caret">▶</div>
+            <div style="min-width:0">
+              <div class="cname"><span class="mono" style="color:var(--gold);margin-right:8px">${s.num}</span>${esc(s.name)}</div>
+              <div class="cmeta"><span>${esc(s.detail)}</span></div>
+            </div>
+            <div class="cright">
+              <div class="cdays ${p === 100 ? 'ok' : ''}" style="${p === 100 ? 'color:var(--green)' : ''}">${p}%</div>
+              <div class="cprog">${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length}</div>
+            </div>
+          </div>
+          <div class="cbody">
+            ${(s.tasks || []).map(t => taskRow('steps', s.id, t)).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ---------------- Actions ---------------- */
+function renderActions() {
+  const acts = (data.actions || []).slice().sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (daysTo(a.due) ?? 1e9) - (daysTo(b.due) ?? 1e9);
+  });
+  const open = acts.filter(a => !a.done).length;
+  $('#p-actions').innerHTML = `
+    <div class="sechead"><h2>My actions</h2><span class="c">${open} outstanding</span></div>
+    <div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
+      ${acts.map(t => taskRow('actions', '', t)).join('')}
+    </div></div>`;
+}
+
+/* ---------------- Money ---------------- */
+function renderMoney() {
+  const ranked = (data.schools || []).slice().sort((a, b) => a.totalUsd - b.totalUsd);
+  const funding = data.funding || [];
+  $('#p-money').innerHTML = `
+    <div class="sechead"><h2>Total cost ranking</h2><span class="c">tuition + fees + living, USD</span></div>
+    <div class="tscroll"><table>
+      <thead><tr><th>#</th><th>School</th><th>Tuition (local)</th><th>Tuition (USD)</th><th>All-in (USD)</th></tr></thead>
+      <tbody>
+        ${ranked.map((s, i) => `<tr>
+          <td class="mono" style="color:var(--muted)">${i + 1}</td>
+          <td style="font-weight:500">${esc(s.name)}${s.flag ? ' <span style="color:var(--gold)">⚑</span>' : ''}</td>
+          <td class="num" style="color:var(--muted)">${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}</td>
+          <td class="num">${usd(s.tuitionUsd)}</td>
+          <td class="num" style="font-weight:600">${usd(s.totalUsd)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6">
+      FX: EUR 1 ≈ USD 1.08 · GBP 1 ≈ USD 1.27 · CHF 1 ≈ USD 1.12 (late June 2026).
+      ⚑ marks figures needing direct verification with the school.
+    </div>
+
+    <div class="sechead"><h2>Funding sources</h2><span class="c">${funding.length} routes</span></div>
+    <div class="tscroll"><table>
+      <thead><tr><th>Source</th><th>Type</th><th>Detail</th><th>Action</th></tr></thead>
+      <tbody>
+        ${funding.map(f => `<tr>
+          <td style="font-weight:500">${esc(f.name)}</td>
+          <td style="color:var(--muted)">${esc(f.type)}</td>
+          <td style="color:var(--muted)">${esc(f.detail)}</td>
+          <td>${esc(f.action)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+/* ---------------- Render ---------------- */
+function render() {
+  if (!data) return;
+  renderDash();
+  renderSchools();
+  renderSteps();
+  renderActions();
+  renderMoney();
+}
+
+/* ---------------- Reminders ----------------
+   Browser notifications fire only while this page is open in a tab.
+   For push when the app is closed you need a service worker plus
+   Firebase Cloud Messaging, driven by a scheduled Cloud Function.
+   Hook documented in README.md.
+-------------------------------------------- */
+$('#notify').addEventListener('click', async () => {
+  if (!('Notification' in window)) { toast('This browser does not support notifications'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Notifications are blocked in your browser settings'); return; }
+  toast('Reminders on while this tab is open');
+  checkDue(true);
+});
+
+function checkDue(force = false) {
+  if (!data || Notification.permission !== 'granted') return;
+  const stamp = today().toISOString().slice(0, 10);
+  if (!force && localStorage.getItem('lastNotify') === stamp) return;
+
+  const soon = [];
+  (data.schools || []).forEach(s => (s.tasks || []).forEach(t => {
+    const n = daysTo(t.due);
+    if (!t.done && n !== null && n <= 7) soon.push(`${s.name}: ${t.label}`);
+  }));
+  (data.actions || []).forEach(t => {
+    const n = daysTo(t.due);
+    if (!t.done && n !== null && n <= 7) soon.push(t.label);
+  });
+
+  if (soon.length) {
+    new Notification(`${soon.length} EMBA task${soon.length > 1 ? 's' : ''} due within 7 days`, {
+      body: soon.slice(0, 3).join('\n') + (soon.length > 3 ? `\n…and ${soon.length - 3} more` : ''),
+      tag: 'emba-due'
+    });
+    localStorage.setItem('lastNotify', stamp);
+  }
+}
+setInterval(() => checkDue(false), 60 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDue(false); });
+
+/* ---------------- Go ---------------- */
+start();
+
+/* ---------------- Service worker ----------------
+   Registers the offline shell cache. Runs only over http(s),
+   so it silently no-ops on file:// when opened directly.
+-------------------------------------------------- */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((e) => {
+      console.warn('Service worker registration failed:', e);
+    });
+  });
+}
+</script>
+</body>
+</html>
