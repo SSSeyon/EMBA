@@ -6,7 +6,8 @@
         straight from Firestore's REST API. The project's rules are open by
         deliberate choice, so the public API key is all that's needed.
      2. Recomputes "due within 7 days" exactly the way the app itself does
-        (excluded schools skipped, done tasks skipped).
+        (excluded schools skipped, done tasks skipped, decided applications
+        skipped).
      3. Sends one Web Push to every registered device. The service worker
         in sw.js turns it into the notification.
 
@@ -68,10 +69,14 @@ if (!data || !subs.length) {
   process.exit(0);
 }
 
+/* A decided application — accepted or rejected — has nothing left to chase. */
+const CLOSED = ['accepted', 'rejected'];
+
 const excluded = data.excluded || {};
 const soon = [];
 (data.schools || []).forEach((s) => {
   if (excluded[s.id]) return;
+  if (CLOSED.includes(s.status)) return;
   (s.tasks || []).forEach((t) => {
     const n = daysTo(t.due);
     if (!t.done && n !== null && n <= 7) soon.push(`${s.name}: ${t.label}`);

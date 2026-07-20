@@ -420,6 +420,11 @@ function buildSeed() {
     schools: SCHOOLS.map((s) => ({
       ...s,
       notes: '',
+      status: 'none',        // application pipeline stage
+      url: '',               // admissions page, for checking dates against
+      schDeadline: null,     // scholarship deadline where it differs
+      docs: [],              // essays and other documents
+
       // Start windows — programmes with two intakes get one entry per window,
       // each of which can be switched off in the school card.
       intakes: String(s.start).split(' / ').map((label) => ({ label, on: true, deadline: null })),

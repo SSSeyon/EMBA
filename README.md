@@ -1,8 +1,10 @@
 # EMBA 2027 — Admissions Tracker
 
-A single-page tracker for Seyon Hunga's Executive MBA applications. 18 schools,
-148 tasks. No accounts, no server — your data lives in the browser's
-localStorage, with one-click Backup / Restore to move it between devices.
+A single-page tracker for Seyon Hunga's Executive MBA applications, targeting
+programmes starting in 2027. 18 schools, 148 tasks. No accounts and no login —
+your data lives in the browser's localStorage and syncs across your devices
+through a shared Firestore document, with Backup / Restore and cloud snapshots
+as the safety net.
 
 Static site. No build step. Works opened straight from `index.html` on your
 file system, or drop it in a repo and turn on GitHub Pages.
@@ -17,7 +19,10 @@ file system, or drop it in a repo and turn on GitHub Pages.
 | `seed.js` | Your 18 schools, 9 project steps, 8 personal actions, 13 funding routes |
 | `sync.js` | Optional cross-device sync (Firebase). Inert until configured — see "Sync across devices" |
 | `manifest.json` | Makes the app installable to your home screen |
-| `sw.js` | Service worker — offline shell caching, dormant push hook |
+| `sw.js` | Service worker — offline shell caching, push notification handler |
+| `scripts/send-push.mjs` | Sends the daily deadline push. Run by the GitHub Action, not by the app |
+| `.github/workflows/push-reminders.yml` | Scheduled Action that fires the push each morning |
+| `PUSH-SETUP.md` | One-time setup for the push notifications (two repo secrets) |
 | `icon-192.png`, `icon-512.png` | Home-screen icons (standard) |
 | `icon-maskable-192.png`, `icon-maskable-512.png` | Android adaptive icons |
 | `apple-touch-icon.png` | iOS home-screen icon |
@@ -56,8 +61,9 @@ Live at `https://YOURNAME.github.io/emba-tracker/` in about a minute.
 > keep using it locally.
 
 **After you change `index.html`, `seed.js`, or `sync.js` and redeploy:** bump
-`CACHE_VERSION` in `sw.js` (e.g. `emba-v3` → `emba-v4`) so returning devices
-fetch the new files instead of serving cached ones.
+`APP_VERSION` in `index.html` *and* `CACHE_VERSION` in `sw.js` together, every
+time. They are the mechanism that stops a returning device serving stale
+cached files, and they are only useful if they always move as a pair.
 
 ---
 
@@ -76,9 +82,13 @@ put in `seed.js` (a school, a step, an action, a funding route) without
 touching what you've already ticked, typed, or edited. It compares by `id` /
 `name`, so it only ever adds — it never overwrites an existing record.
 
-**By default, data does not sync between devices or browsers.** `file://`,
-your Pages URL, your phone, and your laptop each have their own separate copy
-unless you turn on Sync (below). Two ways to move data manually:
+**Sync is configured and on.** Every device that opens the deployed app reads
+and writes the same Firestore document, so your phone and laptop stay in step
+without any setup — see "Sync across devices" below. The exception is opening
+`index.html` straight from disk over `file://`, which skips sync entirely and
+keeps its own separate local copy.
+
+Two ways to move data manually regardless:
 
 - **Backup** — downloads `emba-tracker-backup-YYYY-MM-DD.json`
 - **Restore** — loads a backup file, replacing what's in that browser
@@ -149,8 +159,9 @@ no login screen — and add `request.auth != null` to the rule.
 5. **Paste your config into `sync.js`** — open the file, replace the six
    `REPLACE_ME` values in `firebaseConfig` with what you copied in step 2.
 6. Redeploy (or just reload if testing locally over `http://`, not `file://`
-   — Firebase's SDK needs a real origin). Click **Sync**, pick a code, repeat
-   on your other devices.
+   — Firebase's SDK needs a real origin). There is nothing to click and no
+   code to enter: every device that loads the app is now on the same
+   document.
 
 Until step 5 is done, `sync.js` is inert on purpose — `EmbaSync.available()`
 returns false and the app stays exactly as it is today.
@@ -179,6 +190,10 @@ The **Settings** tab holds everything that isn't day-to-day tracking:
 - **Exchange rate** — naira per dollar, used across the whole app.
 - **Calendar** — downloads an `.ics` of every deadline.
 - **Backup** / **Restore** — save and reload your tracker as a JSON file.
+- **Device notifications** — registers this device for the daily push (see
+  Reminders below).
+- **Snapshots** — keeps a rolling set of restore points in the cloud, one per
+  weekday slot, so you can roll back a bad edit without a local file.
 - **Schools and logos** — switch a school in or out, and set its logo.
 
 ### Showing costs in naira
@@ -286,32 +301,37 @@ calendar with Judge admissions before relying on the countdown.
 
 ## Reminders
 
-Two mechanisms, deliberately different in reliability:
+Three mechanisms, deliberately different in reliability:
+
+**Daily push notification** — the most reliable of the three, and the only
+one that reaches you with the app closed. A scheduled GitHub Action runs
+`scripts/send-push.mjs` each morning at 07:00 Lagos time, reads the tracker
+straight out of Firestore, works out what is due within 7 days, and pushes a
+notification to every registered device. It needs a one-time setup: two repo
+secrets and one tap per device — **see `PUSH-SETUP.md`**. Silence on a day
+with nothing due within 7 days is expected, not a fault.
 
 **Calendar export** — the **Calendar** button downloads `emba-deadlines.ics`:
 one all-day event per unsubmitted school deadline (marked `[Estimated]` where
-relevant) and every outstanding action with a due date. Import that file into
-your phone's calendar app once, and it'll alert you the way a real calendar
-alert does — no tab needs to stay open. Re-download and re-import after you
-confirm a deadline or add tasks, since it's a snapshot, not a live feed.
+relevant), one per scholarship deadline, and every outstanding action with a
+due date. Import that file into your phone's calendar app once, and it'll
+alert you the way a real calendar alert does. Re-download and re-import after
+you confirm a deadline or add tasks, since it's a snapshot, not a live feed.
 
 **Remind me** button asks for notification permission and then fires a
 browser notification for anything due within 7 days — on load, when you
 return to the tab, and hourly. Once per day, tracked in `localStorage`.
-**This only works while the page is open in a tab** — that is the honest
-limit of a static site. Treat it as a bonus nudge, not your primary alarm;
-the Calendar export is the pragmatic answer for anything you actually need
-to not miss.
+**This only works while the page is open in a tab**, which is why the push
+above exists. Treat it as a bonus nudge.
 
-(`sw.js` still carries dormant push handlers if you ever wire up Firebase
-Cloud Messaging for true closed-app push later — see the comment block at
-the bottom of that file. Not needed for the Calendar export above.)
+All three skip what you've already dealt with: done tasks, schools switched
+off in Settings, and applications whose status is `accepted` or `rejected`.
 
 ---
 
 ## Data model
 
-One localStorage key, `emba-tracker-v1`, about 24 KB of JSON:
+One localStorage key, `emba-tracker-v1`, about 26 KB of JSON:
 
 ```
 seedVersion : 1
@@ -320,15 +340,29 @@ updatedAt   : epoch ms — bumped on every save, used to resolve Sync conflicts
 logos       : { <school id>: "data:image/png;base64,…" }  picked in Settings
 excluded    : { <school id>: true }  schools switched off in Settings
 fx          : { ngnPerUsd: 1650 | null }  naira rate, null = show USD only
+pots        : { savings, employer, scholarship, loan }  each USD or null
 schools[18] : { id, name, geo, priority, waiver, waiverNote,
                 tuitionLocal, ccy, tuitionUsd, totalUsd,
                 duration, start, deadline, deadlineNote, estimated,
                 scholarship, scholarshipTiming, flag?, notes,
-                tasks[7+] : { id, label, due, done, custom? } }
+                status      : none | drafting | submitted | interview |
+                              offer | accepted | rejected
+                url         : admissions page, for checking dates against
+                schDeadline : scholarship deadline, or null
+                appFeeUsd   : application fee, or null
+                rolledFrom? : a round date that passed and rolled forward
+                intakes[]   : { label, on, deadline }   start windows
+                rounds[]    : { label, date, win }      win = intake label
+                docs[]      : { id, name, prompt, words, status, link }
+                recs[]      : { id, name, status, chased }
+                tasks[7+]   : { id, label, due, done, custom? } }
 steps[9]    : { id, num, name, detail, tasks[] }
 actions[8+] : { id, label, due, done, custom? }
 funding[13] : { name, type, detail, action }
 ```
+
+`docs[].status` runs `todo → draft → review → final`; `recs[].status` runs
+`ask → agreed → drafting → submitted`. Both cycle when you tap the pill.
 
 Tasks you add yourself in the app carry `"custom": true` and an id like
 `custom-1737000000000` — that's how the app knows which ones show a delete
@@ -339,15 +373,86 @@ hand-editable.
 
 ---
 
+## Tracking an application
+
+Task ticks measure how much preparation you've done. These measure the
+application itself.
+
+### Status
+
+Each school card carries an **Application status**: not started → drafting →
+submitted → interview → offer → accepted, plus rejected. It shows as a pill
+on the collapsed card, so you can see where everything stands at a glance,
+and the dashboard grows a **Pipeline** strip once anything is submitted.
+
+Status and the "Submit application" task are kept in step automatically:
+moving to submitted ticks the task, and ticking the task moves the status.
+Past submitted the app won't let you untick it — the school has already
+replied, so change the status instead.
+
+**Once an application is sent its deadline stops counting down.** It drops
+out of the "Next deadline" hero, shows its status in the runway table instead
+of a countdown, and leaves the calendar export. Accepted and rejected schools
+also stop generating reminders entirely.
+
+### Start windows and rounds
+
+Most programmes run two intakes a year. Each school holds a list of **start
+windows**, and each window can carry its own application deadline. Untick a
+window to switch it off — it stays listed, struck through, so a decision to
+skip an intake is visible rather than lost.
+
+**Rounds** work alongside them. Where a school has more than one window, each
+round can be tied to the window it feeds (or left on "all windows"). The
+tracked deadline is always the earliest upcoming date across every active
+window and round, so switching a window off removes its rounds from the
+countdown. If a round passes and a later one exists, the tracker rolls
+forward on next load and says so on the card rather than moving the
+goalposts silently.
+
+### Documents and recommenders
+
+**Essays and documents** — one row per document: the prompt, a word limit, a
+status pill (`to write → draft → review → final`), and a link to wherever the
+draft actually lives. The app tracks the state of a document, never its text.
+
+**Recommenders** — name, status (`to ask → agreed → drafting → submitted`),
+and a "chased today" stamp so the dashboard can point at the ones going
+quiet.
+
+### Verifying dates
+
+Most deadlines in here are estimates. Each school has an **Admissions page**
+field, and the dashboard carries a **Dates to verify** checklist: every
+unconfirmed school, its current date, a link straight to its admissions page,
+and a **confirm** button. Work down the list and it empties.
+
+### Money
+
+The **Costs** tab holds four funding pots (savings, employer, scholarship,
+loan). The total is set against each school's all-in cost to show what's
+covered and what's short. Application fees are tracked per school and
+totalled, and any two or three schools can be put side by side in the compare
+table.
+
+---
+
 ## Editing your data
 
 Most day-to-day edits don't need a text editor any more:
 
 - **Confirm a deadline** — Schools tab → open the school → **edit** next to
   the deadline line → set the real date, tick "confirmed", Save. This also
-  updates the "Submit application" task's due date to match.
+  updates the "Submit application" task's due date to match. Or use
+  **mark confirmed** on the card (and the dashboard checklist) to clear the
+  estimate flag without opening the editor.
+- **Dates, fees, duration, windows and rounds** all live in that same **edit**
+  block, along with the scholarship deadline and the admissions page URL.
 - **Add a task** — "+ Add task" at the bottom of a school's checklist or the
   My actions tab. Custom tasks show a ✕ to delete them.
+- **Documents and recommenders** — "+ Add document" / "+ Add recommender" on
+  each school's card. Tap a status pill to advance it; **edit** on a document
+  row sets its prompt, word limit and link.
 - **Notes per school** — free-text box at the bottom of each school's card.
   Saves when you click away from it.
 - **Everything else** (tuition, waiver text, scholarship detail, adding a

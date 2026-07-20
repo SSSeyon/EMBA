@@ -52,6 +52,7 @@
   --green:#4ade80;      /* done / confirmed       */
   --green-lo:rgba(74,222,128,.10);
   --blue:#60a5fa;       /* links                  */
+  --blue-lo:rgba(96,165,250,.12);
   --header-bg:rgba(15,17,23,.92);
   --on-accent:#0f1117;  /* text on a filled accent */
   --urgent:rgba(248,113,113,.38); /* urgent card border */
@@ -78,6 +79,7 @@
   --green:#16a34a;
   --green-lo:rgba(22,163,74,.10);
   --blue:#3b82f6;
+  --blue-lo:rgba(59,130,246,.10);
   --header-bg:rgba(240,244,248,.92);
   --on-accent:#ffffff;
   --urgent:rgba(239,68,68,.38);
@@ -275,6 +277,15 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(104px + env(safe-area
 .p-HIGH{background:var(--amber-lo);color:var(--amber)}
 .p-AMBER{background:var(--amber-lo);color:var(--amber)}
 .p-STANDARD{background:var(--ink-3);color:var(--muted)}
+/* Application pipeline. Neutral until it is with the school, then it
+   warms up through interview and offer; rejected reads as closed, not
+   alarming — it is information, and the runway stops nagging either way. */
+.ap-drafting{background:var(--ink-3);color:var(--muted)}
+.ap-submitted{background:var(--blue-lo);color:var(--blue)}
+.ap-interview{background:var(--amber-lo);color:var(--amber)}
+.ap-offer{background:var(--green-lo);color:var(--green)}
+.ap-accepted{background:var(--green-lo);color:var(--green)}
+.ap-rejected{background:var(--ink-3);color:var(--muted);text-decoration:line-through}
 .w-Green{background:var(--green-lo);color:var(--green)}
 .w-Amber{background:var(--amber-lo);color:var(--amber)}
 .w-Red{background:var(--red-lo);color:var(--red)}
@@ -386,6 +397,47 @@ th.num{text-align:right}
 .recst.st-drafting{color:var(--amber);border-color:var(--amber);background:var(--amber-lo)}
 .recst.st-submitted{color:var(--green);border-color:var(--green);background:var(--green-lo)}
 .chase{font-size:11px;color:var(--blue);text-decoration:underline;text-underline-offset:2px;padding:4px 0;flex-shrink:0}
+.recmeta .chase{margin-left:8px}
+
+/* ---------- Documents ---------- */
+.recst.dst-draft{color:var(--blue);border-color:var(--blue)}
+.recst.dst-review{color:var(--amber);border-color:var(--amber);background:var(--amber-lo)}
+.recst.dst-final{color:var(--green);border-color:var(--green);background:var(--green-lo)}
+
+/* ---------- Application status ---------- */
+.statusrow{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 0 2px;border-top:1px solid var(--line);margin-top:10px;
+}
+.statusrow label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stsel{
+  background:var(--ink-3);border:1px solid var(--line);border-radius:20px;
+  color:var(--paper);font:inherit;font-size:12px;font-weight:600;padding:6px 12px;min-height:32px;
+}
+.stsel.ap-submitted{border-color:var(--blue);color:var(--blue)}
+.stsel.ap-interview{border-color:var(--amber);color:var(--amber)}
+.stsel.ap-offer,.stsel.ap-accepted{border-color:var(--green);color:var(--green)}
+.dledit .urlin{width:100%;max-width:none}
+.dledit select{
+  background:var(--ink-3);border:1px solid var(--line);border-radius:6px;
+  color:var(--paper);font:inherit;font-size:12px;padding:5px 6px;
+}
+
+/* ---------- Dashboard pipeline ---------- */
+.pipe{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.pipe .pstage{
+  flex:1 1 auto;min-width:88px;border:1px solid var(--line);border-radius:10px;
+  background:var(--ink-2);padding:9px 11px;
+}
+.pipe .pstage .pv{font-size:19px;font-weight:600;line-height:1.1}
+.pipe .pstage .pk{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:3px}
+.pipe .pstage.hot .pv{color:var(--amber)}
+.pipe .pstage.good .pv{color:var(--green)}
+
+/* ---------- Verify checklist ---------- */
+.vrow{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:13px}
+.vrow+.vrow{border-top:1px solid var(--line)}
+.vname{flex:1;min-width:0}
 
 /* ---------- Funding pots ---------- */
 .pots{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
@@ -599,7 +651,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.14.0';
+const APP_VERSION = 'v1.15.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -742,7 +794,21 @@ function migrate(d) {
     if (s.notes === undefined) { s.notes = ''; changed = true; }
     if (!Array.isArray(s.recs))   { s.recs = [];   changed = true; }
     if (!Array.isArray(s.rounds)) { s.rounds = []; changed = true; }
+    if (!Array.isArray(s.docs))   { s.docs = [];   changed = true; }
     if (s.appFeeUsd === undefined) { s.appFeeUsd = null; changed = true; }
+    // Where the application actually stands, independent of the task ticks.
+    if (s.status === undefined) {
+      s.status = (s.tasks || []).find((t) => t.id === 'submit')?.done ? 'submitted' : 'none';
+      changed = true;
+    }
+    // Scholarship money has its own deadline at several schools.
+    if (s.schDeadline === undefined) { s.schDeadline = null; changed = true; }
+    // The admissions page to check a date against.
+    if (s.url === undefined) { s.url = ''; changed = true; }
+    // A round can belong to one start window; null means it applies to all.
+    (s.rounds || []).forEach((r) => {
+      if (r.win === undefined) { r.win = null; changed = true; }
+    });
   });
 
   // Intake alignment — the target is programmes starting in 2027. Earlier
@@ -852,13 +918,22 @@ function sortedRounds(s) {
     .slice().sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
+/* Is the start window a round is tied to still switched on? A round with no
+   window belongs to the school as a whole; a round naming a window that no
+   longer exists is left visible rather than silently dropped. */
+function winOn(s, label) {
+  if (!label) return true;
+  const w = (s.intakes || []).find(i => i.label === label);
+  return !w || w.on;
+}
+
 /* Every date the school could be applying by: its rounds plus any deadline
    set on an active start window. The earliest upcoming one is what the
-   tracker follows. */
+   tracker follows. Rounds belonging to a switched-off window drop out. */
 function deadlineCandidates(s) {
   const wins = (s.intakes || []).filter(i => i.on && i.deadline)
     .map(i => ({ label: (i.label || 'intake') + ' intake', date: i.deadline }));
-  return sortedRounds(s).concat(wins)
+  return sortedRounds(s).filter(r => winOn(s, r.win)).concat(wins)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
@@ -1054,7 +1129,19 @@ function buildICS() {
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//EMBA Tracker//EN', 'CALSCALE:GREGORIAN'];
 
   activeSchools().forEach(s => {
-    if (!s.deadline || pct(s.tasks) === 100) return;
+    // Scholarship money can close before — or after — the application does.
+    if (s.schDeadline && !isClosed(s)) {
+      lines.push(
+        'BEGIN:VEVENT',
+        'UID:sch-' + s.id + '@emba-tracker',
+        'DTSTAMP:' + stamp,
+        'DTSTART;VALUE=DATE:' + toICSDate(s.schDeadline),
+        'SUMMARY:' + icsEsc(s.name + ' — scholarship deadline'),
+        'DESCRIPTION:' + icsEsc(s.scholarshipTiming || ''),
+        'END:VEVENT'
+      );
+    }
+    if (!s.deadline || isSent(s)) return;
     lines.push(
       'BEGIN:VEVENT',
       'UID:school-' + s.id + '@emba-tracker',
@@ -1107,6 +1194,24 @@ window.__toggle = (scope, containerId, taskId) => {
   const task = (arr || []).find(t => t.id === taskId);
   if (!task) return;
   task.done = !task.done;
+  // Ticking a school's submit task is the same statement as moving it to
+  // 'submitted', so keep the pipeline honest without a second tap. Untick
+  // only walks it back if nothing later has happened since.
+  if (scope === 'schools' && taskId === 'submit') {
+    const s = (data.schools || []).find(x => x.id === containerId);
+    if (s) {
+      if (task.done && !isSent(s)) {
+        s.status = 'submitted';
+      } else if (!task.done && appStatus(s) === 'submitted') {
+        s.status = 'drafting';
+      } else if (!task.done && isSent(s)) {
+        // Past submitted the school has already replied, so the application
+        // demonstrably went out — unticking it would just contradict itself.
+        task.done = true;
+        toast(`${s.name} is at ${APP_LABEL[appStatus(s)]} — change the status to undo that`);
+      }
+    }
+  }
   render();
   save();
 };
@@ -1154,10 +1259,14 @@ function harvestRounds(id) {
   const s = (data.schools || []).find(x => x.id === id);
   const box = $('#rounds-' + id);
   if (!s || !box) return s;
-  s.rounds = Array.from(box.querySelectorAll('.rline')).map(row => ({
-    label: row.querySelector('.rlab').value.trim(),
-    date:  row.querySelector('.rdate').value || null,
-  })).filter(r => r.label || r.date);
+  s.rounds = Array.from(box.querySelectorAll('.rline')).map(row => {
+    const sel = row.querySelector('.rwin');
+    return {
+      label: row.querySelector('.rlab').value.trim(),
+      date:  row.querySelector('.rdate').value || null,
+      win:   sel && sel.value ? sel.value : null,
+    };
+  }).filter(r => r.label || r.date);
   return s;
 }
 
@@ -1224,6 +1333,16 @@ window.__saveDL = (id) => {
   const confirmed = $('#dl-conf-' + id).checked;
   const feeVal = parseFloat($('#dl-fee-' + id).value);
   s.appFeeUsd = isFinite(feeVal) && feeVal >= 0 ? feeVal : null;
+  const urlEl = $('#dl-url-' + id);
+  if (urlEl) s.url = urlEl.value.trim();
+  // Scholarship money often closes on its own date. Carrying it on the
+  // scholarship task is what puts it in the runway and the reminders.
+  const schEl = $('#dl-sch-' + id);
+  if (schEl) {
+    s.schDeadline = schEl.value || null;
+    const schTask = (s.tasks || []).find(t => t.id === 'scholarship');
+    if (schTask) schTask.due = s.schDeadline;
+  }
   if (dateVal) s.deadline = dateVal;
   s.estimated = !confirmed;
   delete s.rolledFrom;               // an explicit edit resets the missed-round note
@@ -1253,6 +1372,107 @@ window.__confirmDL = (id) => {
   save();
   toast(`${s.name} — deadline confirmed`);
 };
+
+/* ---------------- Application status ----------------
+   Where each application actually stands. Task ticks measure preparation;
+   this measures the application itself, which is the thing you want to see
+   once schools start replying. Kept in step with the 'submit' task in both
+   directions so the two can never disagree. */
+const APP_FLOW  = ['none', 'drafting', 'submitted', 'interview', 'offer', 'accepted', 'rejected'];
+const APP_LABEL = {
+  none: 'not started', drafting: 'drafting', submitted: 'submitted',
+  interview: 'interview', offer: 'offer', accepted: 'accepted', rejected: 'rejected',
+};
+/* Sent — the application is with the school, so its deadline has stopped
+   being something to count down to. */
+const APP_SENT = ['submitted', 'interview', 'offer', 'accepted', 'rejected'];
+
+function appStatus(s) { return s.status || 'none'; }
+function isSent(s)    { return APP_SENT.includes(appStatus(s)); }
+function isClosed(s)  { return appStatus(s) === 'accepted' || appStatus(s) === 'rejected'; }
+
+window.__setStatus = (sid, val) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  if (!s) return;
+  s.status = val;
+  // Ticking through to 'submitted' or beyond implies the submit task is done.
+  const submitTask = (s.tasks || []).find(t => t.id === 'submit');
+  if (submitTask) submitTask.done = isSent(s);
+  render();
+  save();
+  toast(`${s.name} — ${APP_LABEL[val]}`);
+};
+
+/* ---------------- Documents ----------------
+   Essays and anything else a school wants in writing. The link points at
+   wherever the draft actually lives; this tracks its state, not its text. */
+const DOC_STATES = ['todo', 'draft', 'review', 'final'];
+const DOC_LABELS = { todo: 'to write', draft: 'draft', review: 'review', final: 'final' };
+
+window.__addDoc = (sid) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  if (!s) return;
+  const name = prompt('Document name (e.g. "Essay 1 — leadership"):');
+  if (!name || !name.trim()) return;
+  s.docs = s.docs || [];
+  s.docs.push({ id: 'doc-' + Date.now(), name: name.trim(), prompt: '', words: null, status: 'todo', link: '' });
+  render();
+  save();
+};
+
+window.__docStatus = (sid, did) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  const dc = s && (s.docs || []).find(x => x.id === did);
+  if (!dc) return;
+  dc.status = DOC_STATES[(DOC_STATES.indexOf(dc.status) + 1) % DOC_STATES.length];
+  render();
+  save();
+};
+
+window.__docEdit = (sid, did) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  const dc = s && (s.docs || []).find(x => x.id === did);
+  if (!dc) return;
+  const p = prompt('Essay prompt / what the school asks for:', dc.prompt || '');
+  if (p === null) return;
+  const w = prompt('Word limit (blank for none):', dc.words ?? '');
+  if (w === null) return;
+  const l = prompt('Link to the draft (Google Doc, etc.):', dc.link || '');
+  if (l === null) return;
+  const wn = parseInt(w, 10);
+  dc.prompt = p.trim();
+  dc.words = isFinite(wn) && wn > 0 ? wn : null;
+  dc.link = l.trim();
+  render();
+  save();
+};
+
+window.__delDoc = (sid, did) => {
+  const s = (data.schools || []).find(x => x.id === sid);
+  if (!s || !confirm('Remove this document?')) return;
+  s.docs = (s.docs || []).filter(x => x.id !== did);
+  render();
+  save();
+};
+
+function docRow(sid, dc) {
+  const bits = [];
+  if (dc.words) bits.push(dc.words + ' words');
+  if (dc.prompt) bits.push(esc(dc.prompt.length > 60 ? dc.prompt.slice(0, 60) + '…' : dc.prompt));
+  return `
+    <div class="recrow">
+      <div class="recname">${esc(dc.name)}
+        <div class="recmeta">${bits.join(' · ') || 'no prompt yet'}
+          <a class="chase" role="button" tabindex="0" onclick="__docEdit('${sid}','${dc.id}')">edit</a>
+          ${dc.link ? `<a class="chase" href="${esc(dc.link)}" target="_blank" rel="noopener noreferrer">open ↗</a>` : ''}
+        </div>
+      </div>
+      <button class="recst dst-${dc.status}" title="Tap to move to the next stage"
+              onclick="__docStatus('${sid}','${dc.id}')">${DOC_LABELS[dc.status]}</button>
+      <button class="tdel" title="Remove document" aria-label="Remove ${esc(dc.name)}"
+              onclick="__delDoc('${sid}','${dc.id}')">✕</button>
+    </div>`;
+}
 
 /* ---------------- Recommenders ----------------
    Stored per school as { id, name, status, chased }. The status pill cycles
@@ -1362,9 +1582,11 @@ function renderDash() {
   const steps   = data.steps   || [];
   const actions = data.actions || [];
 
+  // Once an application is with the school its deadline stops being a
+  // countdown, so it drops out of the runway hero.
   const live = schools
-    .map(s => ({ s, n: daysTo(s.deadline), done: pct(s.tasks) === 100 }))
-    .filter(x => x.n !== null && !x.done)
+    .map(s => ({ s, n: daysTo(s.deadline) }))
+    .filter(x => x.n !== null && !isSent(x.s))
     .sort((a, b) => a.n - b.n);
   const next = live[0];
 
@@ -1376,7 +1598,11 @@ function renderDash() {
   const doneCount = allTasks.filter(t => t.done).length;
   const overall = allTasks.length ? Math.round(doneCount / allTasks.length * 100) : 0;
 
-  const submitted = schools.filter(s => (s.tasks || []).find(t => t.id === 'submit')?.done).length;
+  const submitted = schools.filter(isSent).length;
+
+  // Where every application stands right now.
+  const pipe = {};
+  APP_FLOW.forEach(k => { pipe[k] = schools.filter(s => appStatus(s) === k).length; });
 
   // Due in next 14 days, not done
   const soon = [];
@@ -1397,6 +1623,10 @@ function renderDash() {
   const heroDays = next ? next.n : null;
   const heroCls  = heroDays === null ? '' : (heroDays <= 14 ? 'crit' : heroDays <= 45 ? 'warn' : '');
 
+  // Dates still to check with an admissions office — the burn-down that
+  // turns the banner's warning into something you can actually work through.
+  const unconfirmed = schools.filter(s => s.estimated && !isSent(s))
+    .sort((a, b) => (daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9));
   const estCount = schools.filter(s => s.estimated).length;
   const confCount = schools.length - estCount;
 
@@ -1460,6 +1690,34 @@ function renderDash() {
       </div>
     </div>
 
+    ${submitted ? `
+      <div class="sechead"><h2>Pipeline</h2><span class="c">${submitted} of ${schools.length} with the schools</span></div>
+      <div class="pipe">
+        ${[['drafting','Drafting',''],['submitted','Submitted',''],['interview','Interview','hot'],
+           ['offer','Offer','good'],['accepted','Accepted','good'],['rejected','Rejected','']]
+          .filter(([k]) => pipe[k])
+          .map(([k, label, cls]) => `
+            <div class="pstage ${cls}">
+              <div class="pv">${pipe[k]}</div>
+              <div class="pk">${label}</div>
+            </div>`).join('')}
+      </div>` : ''}
+
+    ${unconfirmed.length ? `
+      <div class="sechead"><h2>Dates to verify</h2><span class="c">${unconfirmed.length} unconfirmed</span></div>
+      <div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
+        ${unconfirmed.map(s => `
+          <div class="vrow">
+            <div class="vname">
+              <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}</div>
+              <div class="recmeta">${fmtDate(s.deadline)} · ${esc(s.deadlineNote || 'no note')}
+                ${s.url ? `<a class="chase" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">admissions page ↗</a>` : ''}
+              </div>
+            </div>
+            <button class="recst" title="Mark this date as verified" onclick="__confirmDL('${s.id}')">confirm</button>
+          </div>`).join('')}
+      </div></div>` : ''}
+
     <div class="sechead"><h2>${uiWin === 7 ? 'Due this week' : 'Due in the next 14 days'}</h2><span class="c">${soonWin.length} outstanding</span></div>
     <div class="chips">
       <button class="chip ${uiWin === 7 ? 'on' : ''}" onclick="__setWin(7)">This week</button>
@@ -1496,7 +1754,7 @@ function renderDash() {
             </td>
             <td><span class="pill p-${s.priority}">${s.priority}</span></td>
             <td class="num ${s.estimated ? 'est' : ''}" style="color:var(--muted)">${fmtDate(s.deadline)}</td>
-            <td class="num ${p === 100 ? '' : dueClass(n)} ${s.estimated ? 'est' : ''}">${p === 100 ? 'Sent' : dueText(n)}</td>
+            <td class="num ${isSent(s) ? '' : dueClass(n)} ${s.estimated && !isSent(s) ? 'est' : ''}">${isSent(s) ? APP_LABEL[appStatus(s)] : dueText(n)}</td>
             <td style="min-width:120px">
               <div class="pwrap"><div class="pbar ${p === 100 ? 'done' : ''}" style="width:${p}%"></div></div>
               <div style="font-size:10px;color:var(--muted);margin-top:4px" class="mono">${p}%</div>
@@ -1771,13 +2029,14 @@ function renderSchools() {
               <div class="cname">${esc(s.name)}</div>
               <div class="cmeta">
                 <span class="pill p-${s.priority}">${s.priority}</span>
+                ${appStatus(s) !== 'none' ? `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>` : ''}
                 <span class="pill w-${s.waiver}">${s.waiver} waiver</span>
                 <span>${esc(s.geo)}</span>
                 <span class="mono">${usd(s.totalUsd)}</span>
               </div>
             </div>
             <div class="cright">
-              <div class="cdays ${p === 100 ? 'ok' : dueClass(n)} ${s.estimated ? 'est' : ''}">${p === 100 ? 'Sent' : dueText(n)}</div>
+              <div class="cdays ${isSent(s) ? 'ok' : dueClass(n)} ${s.estimated && !isSent(s) ? 'est' : ''}">${isSent(s) ? APP_LABEL[appStatus(s)] : dueText(n)}</div>
               <div class="cprog">${p}% · ${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length}</div>
             </div>
           </div>
@@ -1790,8 +2049,10 @@ function renderSchools() {
               ${s.rolledFrom ? `<span style="color:var(--amber)">Earlier round missed (was ${fmtDate(s.rolledFrom)}) — now tracking the next one.</span><br>` : ''}
               ${rs.length && !editingDL.has(s.id) ? `<b>Rounds:</b> ${rs.map(r => {
                 const rn = daysTo(r.date);
-                const stat = rn < 0 ? ' (passed)' : (r.date === s.deadline ? ' ← tracking' : '');
-                return `${esc(r.label || '')} ${fmtDate(r.date)}${stat}`;
+                const off = !winOn(s, r.win);
+                const stat = off ? ' (window off)' : rn < 0 ? ' (passed)' : (r.date === s.deadline ? ' ← tracking' : '');
+                const txt = `${esc(r.label || '')}${r.win ? ` <span class="c">[${esc(r.win)}]</span>` : ''} ${fmtDate(r.date)}${stat}`;
+                return off ? `<s style="opacity:.55">${txt}</s>` : txt;
               }).join(' · ')}<br>` : ''}
               ${editingDL.has(s.id) ? `
                 <div class="dledit">
@@ -1799,6 +2060,10 @@ function renderSchools() {
                   <label><input type="checkbox" id="dl-conf-${s.id}" ${s.estimated ? '' : 'checked'}> This date is confirmed</label>
                   <label>App fee $ <input type="number" id="dl-fee-${s.id}" min="0" step="any" value="${s.appFeeUsd ?? ''}" placeholder="—" aria-label="Application fee in USD"></label>
                   <label>Duration <input type="text" id="dl-dur-${s.id}" value="${esc(s.duration || '')}" placeholder="e.g. 20 months" aria-label="Programme duration"></label>
+                  <label>Scholarship deadline <input type="date" id="dl-sch-${s.id}" value="${s.schDeadline || ''}" aria-label="Scholarship deadline"></label>
+                  <label style="flex-basis:100%">Admissions page
+                    <input type="url" class="urlin" id="dl-url-${s.id}" value="${esc(s.url || '')}" placeholder="https://…" aria-label="Admissions page URL">
+                  </label>
                   <div id="intakes-${s.id}" style="flex-basis:100%">
                     <div class="recmeta" style="margin:2px 0 4px">Start windows: untick one to switch it off. Each window can carry its own application deadline — the tracker follows the earliest upcoming date across windows and rounds.</div>
                     ${(s.intakes || []).map((iw, i) => `
@@ -1816,7 +2081,13 @@ function renderSchools() {
                       <div class="rline">
                         <input type="text" class="rlab" value="${esc(r.label || '')}" placeholder="R${i + 1}" aria-label="Round name">
                         <input type="date" class="rdate" value="${r.date || ''}" aria-label="Round date">
-                        <button class="rx" onclick="__delRound('${s.id}',${i})" aria-label="Remove round">✕</button>
+                        ${(s.intakes || []).length > 1 ? `
+                          <select class="rwin" aria-label="Start window this round feeds">
+                            <option value="">all windows</option>
+                            ${(s.intakes || []).filter(iw => iw.label).map(iw =>
+                              `<option value="${esc(iw.label)}" ${r.win === iw.label ? 'selected' : ''}>${esc(iw.label)}</option>`).join('')}
+                          </select>` : ''}
+                        <button type="button" class="rx" onclick="__delRound('${s.id}',${i})" aria-label="Remove round">✕</button>
                       </div>`).join('')}
                   </div>
                   <button class="editlink" onclick="__addRound('${s.id}')">+ add round</button>
@@ -1827,11 +2098,22 @@ function renderSchools() {
               <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} · ${usd(s.tuitionUsd)} · <b>All-in:</b> ${usd(s.totalUsd)}${s.appFeeUsd ? ` · <b>App fee:</b> ${usd(s.appFeeUsd)}` : ''}<br>
               <b>Waiver:</b> ${esc(s.waiverNote)}<br>
               <b>Scholarship:</b> ${esc(s.scholarship)}<br>
-              <b>Apply for funding:</b> ${esc(s.scholarshipTiming)}
+              <b>Apply for funding:</b> ${esc(s.scholarshipTiming)}${s.schDeadline
+                ? ` — <b>by ${fmtDate(s.schDeadline)}</b> <span class="${dueClass(daysTo(s.schDeadline))}">${dueText(daysTo(s.schDeadline))}</span>` : ''}
+              ${s.url ? `<br><a class="chase" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">admissions page ↗</a>` : ''}
+            </div>
+            <div class="statusrow">
+              <label for="st-${s.id}">Application status</label>
+              <select id="st-${s.id}" class="stsel ap-${appStatus(s)}" onchange="__setStatus('${s.id}',this.value)">
+                ${APP_FLOW.map(v => `<option value="${v}" ${appStatus(s) === v ? 'selected' : ''}>${APP_LABEL[v]}</option>`).join('')}
+              </select>
             </div>
             ${s.flag ? `<div class="flag">⚑ ${esc(s.flag)}</div>` : ''}
             ${tasks.map(t => taskRow('schools', s.id, t)).join('')}
             ${filtering ? '' : `<button class="ghost addtask" onclick="__addTask('schools','${s.id}')">+ Add task</button>
+            <label class="noteslabel">Essays and documents</label>
+            ${(s.docs || []).map(dc => docRow(s.id, dc)).join('')}
+            <button class="ghost addtask" onclick="__addDoc('${s.id}')">+ Add document</button>
             <label class="noteslabel">Recommenders</label>
             ${(s.recs || []).map(r => recRow(s.id, r)).join('')}
             <button class="ghost addtask" onclick="__addRec('${s.id}')">+ Add recommender</button>
@@ -1983,7 +2265,8 @@ function renderMoney() {
       <tbody>
         ${[
           ['Deadline', s => `${fmtDate(s.deadline)}${s.estimated ? ' <span class="est">est</span>' : ''}`],
-          ['Countdown', s => dueText(daysTo(s.deadline))],
+          ['Countdown', s => isSent(s) ? APP_LABEL[appStatus(s)] : dueText(daysTo(s.deadline))],
+          ['Status', s => appStatus(s) === 'none' ? '—' : `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>`],
           ['Priority', s => `<span class="pill p-${s.priority}">${s.priority}</span>`],
           ['Test waiver', s => `<span class="pill w-${s.waiver}">${s.waiver}</span>`],
           ['Starts', s => startHtml(s)],
@@ -1994,6 +2277,7 @@ function renderMoney() {
           ['App fee', s => s.appFeeUsd ? usd(s.appFeeUsd) : '—'],
           ...(funds ? [['Gap', s => { const g = funds - s.totalUsd - (s.appFeeUsd || 0); return g >= 0 ? '<span class="gap-ok">covered</span>' : `<span class="gap-short">−${usd(Math.abs(g))}</span>`; }]] : []),
           ['Progress', s => `${pct(s.tasks)}% · ${(s.tasks || []).filter(t => t.done).length}/${(s.tasks || []).length} tasks`],
+          ['Scholarship deadline', s => s.schDeadline ? fmtDate(s.schDeadline) : '—'],
           ['Scholarship', s => esc(s.scholarship)],
         ].map(([label, fn]) => `<tr><td style="font-weight:600;white-space:nowrap">${label}</td>${cmp.map(s => `<td>${fn(s)}</td>`).join('')}</tr>`).join('')}
       </tbody>
@@ -2254,7 +2538,7 @@ function checkDue(force = false) {
   if (!force && localStorage.getItem('lastNotify') === stamp) return;
 
   const soon = [];
-  activeSchools().forEach(s => (s.tasks || []).forEach(t => {
+  activeSchools().filter(s => !isClosed(s)).forEach(s => (s.tasks || []).forEach(t => {
     const n = daysTo(t.due);
     if (!t.done && n !== null && n <= 7) soon.push(`${s.name}: ${t.label}`);
   }));
