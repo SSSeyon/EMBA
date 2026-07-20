@@ -22,7 +22,7 @@ file system, or drop it in a repo and turn on GitHub Pages.
 | `icon-maskable-192.png`, `icon-maskable-512.png` | Android adaptive icons |
 | `apple-touch-icon.png` | iOS home-screen icon |
 | `favicon-32.png` | Browser tab icon |
-| `logos/` | One badge per school, shown in front of its name — see `logos/README.md` |
+| `logos/` | One image per school, shown in front of its name. Any format — see `logos/README.md` |
 | `README.md` | This file |
 
 Everything except `logos/` sits flat in the repo root. Push the whole folder.
@@ -162,11 +162,77 @@ the app never calls it.
 
 ## Settings and appearance
 
+Navigation is a **floating pill bar at the bottom of the screen** — the app
+is built for a phone first, and the bottom of a tall screen is the only part
+your thumb reaches comfortably. The bar sits detached from the screen edge
+at every width (a little wider on desktop). Six tabs: Home, Schools, Steps,
+Actions, Costs, Settings.
+
+The look follows the SpendWise app's design language: serif type for
+running text (Palatino — a system font, nothing to download), monospace
+for numbers and metadata, warm paper surfaces in light mode, and soft
+layered shadows under cards.
+
 The **Settings** tab holds everything that isn't day-to-day tracking:
 
 - **Light mode** — switches between the dark and light colour schemes.
+- **Exchange rate** — naira per dollar, used across the whole app.
 - **Calendar** — downloads an `.ics` of every deadline.
 - **Backup** / **Restore** — save and reload your tracker as a JSON file.
+- **Schools and logos** — switch a school in or out, and set its logo.
+
+### Showing costs in naira
+
+Every cost in `seed.js` is stored in **USD**. Set a rate in
+**Settings → Exchange rate** and the naira equivalent appears in brackets
+after every figure in the app — `$133,668 (₦221m)`.
+
+Naira figures for a six-figure course run to nine digits, so anything over a
+thousand is abbreviated (`₦221m`, `₦1.2bn`) to keep table columns readable.
+
+**Leave the field empty and no naira is shown at all.** The app deliberately
+ships without a default rate — a stale hardcoded rate silently producing
+wrong numbers is worse than showing dollars only. It is a plain number you
+update whenever you like; nothing fetches a live rate.
+
+In the cost table, the "Tuition (local)" column stays in the school's own
+currency (EUR, GBP, CHF). Its naira equivalent is the one shown beside the
+USD figure in the next column, so the same amount isn't printed twice.
+
+### Switching a school off
+
+Ruled a school out? Flip its switch in **Settings → Schools and logos**. It
+disappears from the Schools tab, the dashboard runway and counts, the cost
+ranking, and the calendar export, and the totals renumber themselves
+(`18 schools` becomes `17 schools`, "Applications sent" counts out of 17).
+
+**Nothing is deleted.** The school stays in your data and stays visible in
+the Settings list — greyed and struck through — so you can always switch it
+back on, with every tick, note and edited deadline exactly as you left it.
+
+One thing it does *not* touch: tasks in **My actions** that happen to
+mention that school. Those are your own to-dos rather than part of the
+school's record, so the app leaves them alone for you to delete if you want.
+
+### School logos
+
+Every school has an image in front of its name, set one of two ways:
+
+- **Drop a file into the `logos/` folder** named after the school id
+  (`oxford-said.png`, `lbs-emba.jpg`, and so on). `svg`, `png`, `webp`,
+  `jpg`, `jpeg`, `avif` and `gif` all work — the app tries each extension
+  and uses the first it finds, so you never have to convert a file. The one
+  catch is that the extension must match the real format: a PNG named
+  `.svg` won't display. A file in this folder is part of the app, so it
+  shows on every device but has to be added to each deployment's copy.
+- **Pick one in Settings → School logos → Choose.** That image is resized to
+  128px, stored inside your tracker data, and syncs to your other devices
+  automatically. A picked logo overrides the folder file; **Reset** removes
+  it and falls back to the folder. Picked logos share the 1 MB sync budget
+  with your data, so there's a per-image and total cap — if you hit it,
+  reset one before adding another.
+
+See `logos/README.md` for the full id list.
 
 The header keeps only what you reach for constantly: the version badge (tap
 to force a refresh), the sync dot, **Remind me**, and a ☾/☀ button that does
@@ -199,10 +265,11 @@ worker caches the app files so it opens offline.
 
 ## About the deadlines
 
-**Only 2 of the 18 deadlines are confirmed** — INSEAD and IMD, both Round 1,
-15 September 2026.
+**Only 1 of the 18 deadlines is confirmed** — IMD Round 5, 15 September 2026,
+and even that needs a check that the round feeds a 2027 start. Every intake
+tracked here targets a session starting in 2027.
 
-The other 16 are estimates. They came from entries in your research that said
+The other 17 are estimates. They came from entries in your research that said
 "TBC", "confirm with admissions", or "rolling", turned into concrete dates so
 the countdowns would have something to count to. Those dates could be wrong by
 weeks.
@@ -211,9 +278,9 @@ The app is honest about this rather than hiding it: estimated dates render in
 grey with a `~` prefix, confirmed ones are labelled green, and the dashboard
 carries a banner stating the count.
 
-**Cambridge Judge is the one to check first.** It is your URGENT school, the
-intake starts September 2026, and the date in here is a guess. It may already
-have closed.
+**Cambridge Judge is still worth checking early.** The tracked date is an
+estimated Round 1 for the September 2027 intake — confirm the real round
+calendar with Judge admissions before relying on the countdown.
 
 ---
 
@@ -250,6 +317,9 @@ One localStorage key, `emba-tracker-v1`, about 24 KB of JSON:
 seedVersion : 1
 createdAt   : ISO string
 updatedAt   : epoch ms — bumped on every save, used to resolve Sync conflicts
+logos       : { <school id>: "data:image/png;base64,…" }  picked in Settings
+excluded    : { <school id>: true }  schools switched off in Settings
+fx          : { ngnPerUsd: 1650 | null }  naira rate, null = show USD only
 schools[18] : { id, name, geo, priority, waiver, waiverNote,
                 tuitionLocal, ccy, tuitionUsd, totalUsd,
                 duration, start, deadline, deadlineNote, estimated,

@@ -599,7 +599,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.11.0';
+const APP_VERSION = 'v1.12.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -744,6 +744,58 @@ function migrate(d) {
     if (!Array.isArray(s.rounds)) { s.rounds = []; changed = true; }
     if (s.appFeeUsd === undefined) { s.appFeeUsd = null; changed = true; }
   });
+
+  // Intake alignment — the target is programmes starting in 2027. Earlier
+  // seed data carried 2026 start dates (and a Cambridge countdown built
+  // around the Sep 2026 intake). Each field is rewritten only if it still
+  // holds the old seed value, so anything you edited by hand is left alone.
+  const START_2027 = {
+    'cambridge-emba':   ['Sep 2026', 'Sep 2027'],
+    'insead-gemba':     ['Nov 2026', 'Nov 2027'],
+    'oxford-said':      ['20 Sep 2026 / 17 Jan 2027', 'Jan 2027 / Sep 2027'],
+    'lbs-emba':         ['Sep 2026', 'Sep 2027'],
+    'trium':            ['6 Sep 2026', 'Sep 2027'],
+    'booth-emba':       ['Sep 2026', 'Sep 2027'],
+    'wharton-emba':     ['~May 2026', '~May 2027'],
+    'columbia-lbs':     ['May 2026', 'May 2027'],
+    'kellogg-emba':     ['Jan/Sep', 'Jan/Sep 2027'],
+    'mit-sloan':        ['~Jul 2026', '~Jul 2027'],
+    'escp-emba':        ['Sep 2026 / Jan 2027', 'Jan 2027 / Sep 2027'],
+    'sda-bocconi':      ['Late 2026', 'Late 2027'],
+    'imperial-emba':    ['Sep/Oct 2026', 'Sep/Oct 2027'],
+    'manchester-gemba': ['Jan/Jul', 'Jan/Jul 2027'],
+  };
+  (d.schools || []).forEach((s) => {
+    const m = START_2027[s.id];
+    if (m && s.start === m[0]) { s.start = m[1]; changed = true; }
+    if (s.id === 'cambridge-emba' && s.deadline === '2026-08-15') {
+      s.deadline = '2026-11-15';
+      s.deadlineNote = 'R1 estimate for Sep 2027 start — verify with Judge';
+      s.flag = 'This deadline is an estimate for the Sep 2027 intake, not a confirmed date. Contact Cambridge Judge admissions to confirm round dates.';
+      if (s.priority === 'URGENT') s.priority = 'HIGH';
+      const st = (s.tasks || []).find((t) => t.id === 'submit');
+      if (st && st.due === '2026-08-15') st.due = '2026-11-15';
+      changed = true;
+    }
+    if (s.id === 'insead-gemba' && s.deadline === '2026-09-15') {
+      s.deadline = '2027-02-15';
+      s.deadlineNote = 'R1 estimate for Nov 2027 intake — confirm with INSEAD';
+      s.estimated = true;
+      const st = (s.tasks || []).find((t) => t.id === 'submit');
+      if (st && st.due === '2026-09-15') st.due = '2027-02-15';
+      changed = true;
+    }
+    if (s.id === 'imd-emba' && s.deadlineNote === 'Round 5') {
+      s.deadlineNote = 'Round 5 — confirm it feeds a 2027 start';
+      changed = true;
+    }
+  });
+  const a1 = (d.actions || []).find((a) => a.id === 'a1');
+  if (a1 && a1.label === 'Apply to Cambridge Judge EMBA (Sep 2026 start)') {
+    a1.label = 'Apply to Cambridge Judge EMBA (Sep 2027 start)';
+    if (a1.due === '2026-08-15') a1.due = '2026-11-15';
+    changed = true;
+  }
 
   ['schools', 'steps', 'actions'].forEach((key) => {
     d[key] = d[key] || [];
