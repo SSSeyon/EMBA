@@ -599,7 +599,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.12.0';
+const APP_VERSION = 'v1.13.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -758,12 +758,12 @@ function migrate(d) {
     'booth-emba':       ['Sep 2026', 'Sep 2027'],
     'wharton-emba':     ['~May 2026', '~May 2027'],
     'columbia-lbs':     ['May 2026', 'May 2027'],
-    'kellogg-emba':     ['Jan/Sep', 'Jan/Sep 2027'],
+    'kellogg-emba':     ['Jan/Sep', 'Jan 2027 / Sep 2027'],
     'mit-sloan':        ['~Jul 2026', '~Jul 2027'],
     'escp-emba':        ['Sep 2026 / Jan 2027', 'Jan 2027 / Sep 2027'],
     'sda-bocconi':      ['Late 2026', 'Late 2027'],
     'imperial-emba':    ['Sep/Oct 2026', 'Sep/Oct 2027'],
-    'manchester-gemba': ['Jan/Jul', 'Jan/Jul 2027'],
+    'manchester-gemba': ['Jan/Jul', 'Jan 2027 / Jul 2027'],
   };
   (d.schools || []).forEach((s) => {
     const m = START_2027[s.id];
@@ -790,6 +790,19 @@ function migrate(d) {
       changed = true;
     }
   });
+  // Start windows — most programmes run two intakes a year. Each becomes its
+  // own entry so one can be switched off without losing the other.
+  (d.schools || []).forEach((s) => {
+    if (s.start === 'Jan/Sep 2027') { s.start = 'Jan 2027 / Sep 2027'; changed = true; }
+    if (s.start === 'Jan/Jul 2027') { s.start = 'Jan 2027 / Jul 2027'; changed = true; }
+    if (!Array.isArray(s.intakes)) {
+      s.intakes = String(s.start || '').split(' / ').map((x) => x.trim())
+        .filter(Boolean).map((label) => ({ label, on: true }));
+      changed = true;
+    }
+    if (s.duration === undefined) { s.duration = ''; changed = true; }
+  });
+
   const a1 = (d.actions || []).find((a) => a.id === 'a1');
   if (a1 && a1.label === 'Apply to Cambridge Judge EMBA (Sep 2026 start)') {
     a1.label = 'Apply to Cambridge Judge EMBA (Sep 2027 start)';
@@ -1136,6 +1149,7 @@ function harvestRounds(id) {
 }
 
 window.__addRound = (id) => {
+  harvestIntakes(id);
   const s = harvestRounds(id);
   if (!s) return;
   s.rounds.push({ label: 'R' + (s.rounds.length + 1), date: null });
@@ -1143,15 +1157,52 @@ window.__addRound = (id) => {
 };
 
 window.__delRound = (id, i) => {
+  harvestIntakes(id);
   const s = harvestRounds(id);
   if (!s || !s.rounds[i]) return;
   s.rounds.splice(i, 1);
   renderSchools();
 };
 
+/* Start windows — same harvest pattern as rounds, so adding or removing a
+   line keeps whatever is typed in the others. */
+function harvestIntakes(id) {
+  const s = (data.schools || []).find(x => x.id === id);
+  const box = $('#intakes-' + id);
+  if (!s || !box) return s;
+  s.intakes = Array.from(box.querySelectorAll('.iline')).map(row => ({
+    label: row.querySelector('.ilab').value.trim(),
+    on: row.querySelector('.ion').checked,
+  })).filter(i => i.label);
+  return s;
+}
+
+window.__addIntake = (id) => {
+  harvestRounds(id);
+  const s = harvestIntakes(id);
+  if (!s) return;
+  s.intakes = s.intakes || [];
+  s.intakes.push({ label: '', on: true });
+  renderSchools();
+};
+
+window.__delIntake = (id, i) => {
+  harvestRounds(id);
+  const s = harvestIntakes(id);
+  if (!s || !s.intakes[i]) return;
+  s.intakes.splice(i, 1);
+  renderSchools();
+};
+
 window.__saveDL = (id) => {
   const s = harvestRounds(id);
   if (!s) return;
+  harvestIntakes(id);
+  const durEl = $('#dl-dur-' + id);
+  if (durEl) s.duration = durEl.value.trim();
+  // Keep the legacy start string in step with the active windows.
+  const activeStarts = (s.intakes || []).filter(i => i.on).map(i => i.label);
+  if (activeStarts.length) s.start = activeStarts.join(' / ');
   const dateVal = $('#dl-date-' + id).value;
   const confirmed = $('#dl-conf-' + id).checked;
   const feeVal = parseFloat($('#dl-fee-' + id).value);
@@ -1651,6 +1702,16 @@ document.addEventListener('input', (e) => {
 });
 window.__clearTaskQ = () => { taskQ = ''; renderSchools(); };
 
+/* Start windows for display — active ones plain, switched-off ones struck
+   through so the second window is never silently lost. */
+function startHtml(s) {
+  const iw = s.intakes || [];
+  if (!iw.length) return esc(s.start || '—');
+  return iw.map(i => i.on
+    ? esc(i.label)
+    : `<s style="opacity:.55" title="switched off">${esc(i.label)}</s>`).join(' / ');
+}
+
 function renderSchools() {
   const order = { URGENT:0, HIGH:1, AMBER:2, STANDARD:3 };
   const filtering = !!taskQ || taskMode !== 'all';
@@ -1717,6 +1778,17 @@ function renderSchools() {
                   <input type="date" id="dl-date-${s.id}" value="${s.deadline || ''}">
                   <label><input type="checkbox" id="dl-conf-${s.id}" ${s.estimated ? '' : 'checked'}> This date is confirmed</label>
                   <label>App fee $ <input type="number" id="dl-fee-${s.id}" min="0" step="any" value="${s.appFeeUsd ?? ''}" placeholder="—" aria-label="Application fee in USD"></label>
+                  <label>Duration <input type="text" id="dl-dur-${s.id}" value="${esc(s.duration || '')}" placeholder="e.g. 20 months" aria-label="Programme duration"></label>
+                  <div id="intakes-${s.id}" style="flex-basis:100%">
+                    <div class="recmeta" style="margin:2px 0 4px">Start windows: untick a window to switch it off — it stays listed, struck through.</div>
+                    ${(s.intakes || []).map((iw, i) => `
+                      <div class="rline iline">
+                        <input type="checkbox" class="ion" ${iw.on ? 'checked' : ''} aria-label="Start window active">
+                        <input type="text" class="ilab" value="${esc(iw.label || '')}" placeholder="e.g. Sep 2027" aria-label="Start window">
+                        <button class="rx" onclick="__delIntake('${s.id}',${i})" aria-label="Remove start window">✕</button>
+                      </div>`).join('')}
+                  </div>
+                  <button class="editlink" onclick="__addIntake('${s.id}')">+ add start window</button>
                   <div id="rounds-${s.id}" style="flex-basis:100%">
                     ${rs.length ? '' : `<div class="recmeta" style="margin:2px 0 4px">Rounds: add each round's date and the tracker follows the next open one automatically.</div>`}
                     ${(s.rounds || []).map((r, i) => `
@@ -1730,7 +1802,7 @@ function renderSchools() {
                   <button class="ghost addtask" onclick="__saveDL('${s.id}')">Save</button>
                 </div>
               ` : ''}
-              <b>Starts:</b> ${esc(s.start)} · ${esc(s.duration)}<br>
+              <b>Starts:</b> ${startHtml(s)} · ${esc(s.duration || '—')}<br>
               <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} · ${usd(s.tuitionUsd)} · <b>All-in:</b> ${usd(s.totalUsd)}${s.appFeeUsd ? ` · <b>App fee:</b> ${usd(s.appFeeUsd)}` : ''}<br>
               <b>Waiver:</b> ${esc(s.waiverNote)}<br>
               <b>Scholarship:</b> ${esc(s.scholarship)}<br>
@@ -1893,8 +1965,8 @@ function renderMoney() {
           ['Countdown', s => dueText(daysTo(s.deadline))],
           ['Priority', s => `<span class="pill p-${s.priority}">${s.priority}</span>`],
           ['Test waiver', s => `<span class="pill w-${s.waiver}">${s.waiver}</span>`],
-          ['Starts', s => esc(s.start)],
-          ['Duration', s => esc(s.duration)],
+          ['Starts', s => startHtml(s)],
+          ['Duration', s => esc(s.duration || '—')],
           ['Tuition (local)', s => `${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}`],
           ['Tuition (USD)', s => usd(s.tuitionUsd)],
           ['All-in (USD)', s => `<b>${usd(s.totalUsd)}</b>`],

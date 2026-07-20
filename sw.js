@@ -10,7 +10,7 @@
    returning devices fetch the new files instead of serving stale ones.
    ---------------------------------------------------------------- */
 
-const CACHE_VERSION = 'emba-v1.12.0';
+const CACHE_VERSION = 'emba-v1.13.0';
 
 // App shell: local files that make up the tracker itself. These must all
 // exist — addAll() is all-or-nothing, so one 404 here means no offline
