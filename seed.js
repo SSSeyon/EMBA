@@ -422,7 +422,7 @@ function buildSeed() {
       notes: '',
       // Start windows — programmes with two intakes get one entry per window,
       // each of which can be switched off in the school card.
-      intakes: String(s.start).split(' / ').map((label) => ({ label, on: true })),
+      intakes: String(s.start).split(' / ').map((label) => ({ label, on: true, deadline: null })),
       tasks: schoolTasks(s.deadline),
     })),
     steps: STEPS.map((s) => ({ ...s, tasks: s.tasks.map((x) => ({ ...x })) })),

@@ -599,7 +599,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.13.0';
+const APP_VERSION = 'v1.14.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -800,6 +800,9 @@ function migrate(d) {
         .filter(Boolean).map((label) => ({ label, on: true }));
       changed = true;
     }
+    (s.intakes || []).forEach((iw) => {
+      if (iw.deadline === undefined) { iw.deadline = null; changed = true; }
+    });
     if (s.duration === undefined) { s.duration = ''; changed = true; }
   });
 
@@ -849,10 +852,20 @@ function sortedRounds(s) {
     .slice().sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
+/* Every date the school could be applying by: its rounds plus any deadline
+   set on an active start window. The earliest upcoming one is what the
+   tracker follows. */
+function deadlineCandidates(s) {
+  const wins = (s.intakes || []).filter(i => i.on && i.deadline)
+    .map(i => ({ label: (i.label || 'intake') + ' intake', date: i.deadline }));
+  return sortedRounds(s).concat(wins)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
 function rollRounds(d) {
   let changed = false;
   (d.schools || []).forEach(s => {
-    const rs = sortedRounds(s);
+    const rs = deadlineCandidates(s);
     if (!rs.length || !s.deadline) return;
     if (daysTo(s.deadline) >= 0) return;              // still live — nothing to do
     const up = rs.find(r => daysTo(r.date) >= 0);     // next round still open
@@ -1165,7 +1178,9 @@ window.__delRound = (id, i) => {
 };
 
 /* Start windows — same harvest pattern as rounds, so adding or removing a
-   line keeps whatever is typed in the others. */
+   line keeps whatever is typed in the others. Empty rows are kept here so
+   the ✕ buttons' indexes stay aligned with the data; they are dropped on
+   Save instead. */
 function harvestIntakes(id) {
   const s = (data.schools || []).find(x => x.id === id);
   const box = $('#intakes-' + id);
@@ -1173,7 +1188,8 @@ function harvestIntakes(id) {
   s.intakes = Array.from(box.querySelectorAll('.iline')).map(row => ({
     label: row.querySelector('.ilab').value.trim(),
     on: row.querySelector('.ion').checked,
-  })).filter(i => i.label);
+    deadline: row.querySelector('.idate').value || null,
+  }));
   return s;
 }
 
@@ -1198,6 +1214,7 @@ window.__saveDL = (id) => {
   const s = harvestRounds(id);
   if (!s) return;
   harvestIntakes(id);
+  s.intakes = (s.intakes || []).filter(i => i.label);   // empty rows drop on save
   const durEl = $('#dl-dur-' + id);
   if (durEl) s.duration = durEl.value.trim();
   // Keep the legacy start string in step with the active windows.
@@ -1210,9 +1227,10 @@ window.__saveDL = (id) => {
   if (dateVal) s.deadline = dateVal;
   s.estimated = !confirmed;
   delete s.rolledFrom;               // an explicit edit resets the missed-round note
-  // If rounds are set, the next upcoming round becomes the tracked deadline —
-  // one source of truth for the runway, the calendar and the submit task.
-  const up = sortedRounds(s).find(r => daysTo(r.date) >= 0);
+  // If rounds or window deadlines are set, the next upcoming one becomes the
+  // tracked deadline — one source of truth for the runway, the calendar and
+  // the submit task.
+  const up = deadlineCandidates(s).find(r => daysTo(r.date) >= 0);
   if (up) {
     s.deadline = up.date;
     if (up.label) s.deadlineNote = up.label;
@@ -1707,9 +1725,11 @@ window.__clearTaskQ = () => { taskQ = ''; renderSchools(); };
 function startHtml(s) {
   const iw = s.intakes || [];
   if (!iw.length) return esc(s.start || '—');
-  return iw.map(i => i.on
-    ? esc(i.label)
-    : `<s style="opacity:.55" title="switched off">${esc(i.label)}</s>`).join(' / ');
+  return iw.map(i => {
+    const txt = esc(i.label)
+      + (i.deadline ? ` <span class="c">(apply by ${fmtDate(i.deadline)})</span>` : '');
+    return i.on ? txt : `<s style="opacity:.55" title="switched off">${txt}</s>`;
+  }).join(' / ');
 }
 
 function renderSchools() {
@@ -1780,12 +1800,13 @@ function renderSchools() {
                   <label>App fee $ <input type="number" id="dl-fee-${s.id}" min="0" step="any" value="${s.appFeeUsd ?? ''}" placeholder="—" aria-label="Application fee in USD"></label>
                   <label>Duration <input type="text" id="dl-dur-${s.id}" value="${esc(s.duration || '')}" placeholder="e.g. 20 months" aria-label="Programme duration"></label>
                   <div id="intakes-${s.id}" style="flex-basis:100%">
-                    <div class="recmeta" style="margin:2px 0 4px">Start windows: untick a window to switch it off — it stays listed, struck through.</div>
+                    <div class="recmeta" style="margin:2px 0 4px">Start windows: untick one to switch it off. Each window can carry its own application deadline — the tracker follows the earliest upcoming date across windows and rounds.</div>
                     ${(s.intakes || []).map((iw, i) => `
                       <div class="rline iline">
                         <input type="checkbox" class="ion" ${iw.on ? 'checked' : ''} aria-label="Start window active">
                         <input type="text" class="ilab" value="${esc(iw.label || '')}" placeholder="e.g. Sep 2027" aria-label="Start window">
-                        <button class="rx" onclick="__delIntake('${s.id}',${i})" aria-label="Remove start window">✕</button>
+                        <input type="date" class="idate" value="${iw.deadline || ''}" aria-label="Deadline for this window">
+                        <button type="button" class="rx" onclick="__delIntake('${s.id}',${i})" aria-label="Remove start window">✕</button>
                       </div>`).join('')}
                   </div>
                   <button class="editlink" onclick="__addIntake('${s.id}')">+ add start window</button>
