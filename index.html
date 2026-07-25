@@ -286,6 +286,7 @@ main{max-width:1240px;margin:0 auto;padding:24px 20px calc(104px + env(safe-area
 .ap-offer{background:var(--green-lo);color:var(--green)}
 .ap-accepted{background:var(--green-lo);color:var(--green)}
 .ap-rejected{background:var(--ink-3);color:var(--muted);text-decoration:line-through}
+.qsp{background:var(--blue-lo);color:var(--blue)}
 .w-Green{background:var(--green-lo);color:var(--green)}
 .w-Amber{background:var(--amber-lo);color:var(--amber)}
 .w-Red{background:var(--red-lo);color:var(--red)}
@@ -370,6 +371,15 @@ th.num{text-align:right}
 }
 .chip.on{border-color:var(--accent);background:var(--accent-lo);color:var(--accent)}
 .chip:active{opacity:.7}
+
+/* ---------- School list sort ---------- */
+.sortrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.sortrow label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sortsel{
+  background:var(--ink-3);border:1px solid var(--line);border-radius:20px;
+  color:var(--paper);font:inherit;font-size:12px;font-weight:600;
+  padding:6px 12px;min-height:32px;max-width:100%;
+}
 
 /* Search box for the task filter. */
 .qbox{
@@ -456,6 +466,11 @@ th.num{text-align:right}
 
 /* ---------- Rounds editor (inside the deadline edit block) ---------- */
 .rline{display:flex;gap:8px;align-items:center;margin:6px 0;flex-basis:100%}
+/* Five rank fields will not sit on one phone-width line — let them wrap
+   and keep each number box narrow so two or three fit per row. */
+.rankedit .rline{flex-wrap:wrap;gap:10px}
+.rankedit input[type=number]{width:56px}
+.rankedit .ctryin{width:80px}
 .dledit input[type=text],.dledit input[type=number]{
   background:var(--ink-3);border:1px solid var(--line);border-radius:6px;
   color:var(--paper);font:inherit;font-size:13px;padding:5px 8px;width:72px;
@@ -651,7 +666,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.15.0';
+const APP_VERSION = 'v1.16.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -809,6 +824,15 @@ function migrate(d) {
     (s.rounds || []).forEach((r) => {
       if (r.win === undefined) { r.win = null; changed = true; }
     });
+    // QS Executive MBA 2026 ranks. Taken from the seed on first run so
+    // existing data picks up the published numbers, then left alone — an
+    // edited rank is yours and is never written back over.
+    const sd = (seed.schools || []).find((x) => x.id === s.id);
+    if (s.country === undefined) { s.country = sd?.country || ''; changed = true; }
+    if (!s.rank) {
+      s.rank = sd ? { ...sd.rank } : { global: null, country: null, europe: null, joint: null };
+      changed = true;
+    }
   });
 
   // Intake alignment — the target is programmes starting in 2027. Earlier
@@ -1335,6 +1359,18 @@ window.__saveDL = (id) => {
   s.appFeeUsd = isFinite(feeVal) && feeVal >= 0 ? feeVal : null;
   const urlEl = $('#dl-url-' + id);
   if (urlEl) s.url = urlEl.value.trim();
+  // Ranks. Blank clears back to unranked, which sorts last rather than 0th.
+  const ctryEl = $('#dl-ctry-' + id);
+  if (ctryEl) s.country = ctryEl.value.trim();
+  const rankVal = (el) => {
+    const v = parseInt(el.value, 10);
+    return isFinite(v) && v > 0 ? v : null;
+  };
+  s.rank = s.rank || {};
+  [['global', 'rg'], ['country', 'rc'], ['europe', 're'], ['joint', 'rj']].forEach(([key, pfx]) => {
+    const el = $(`#dl-${pfx}-${id}`);
+    if (el) s.rank[key] = rankVal(el);
+  });
   // Scholarship money often closes on its own date. Carrying it on the
   // scholarship task is what puts it in the runway and the reminders.
   const schEl = $('#dl-sch-' + id);
@@ -1990,12 +2026,69 @@ function startHtml(s) {
   }).join(' / ');
 }
 
+/* ---------------- QS Executive MBA ranks ----------------
+   Three cuts of the same 2026 ranking: the global table, the position
+   within the school's own country, and the position within Europe. Any of
+   them can be blank — QS does not rank every programme, and the ones this
+   app could not read are left for you to fill in rather than guessed at. */
+
+/* Unranked sorts last rather than first. 1e9 not Infinity, because
+   Infinity - Infinity is NaN and a NaN comparator scrambles the list. */
+const UNRANKED = 1e9;
+function rankOf(s, k) {
+  const v = s.rank && s.rank[k];
+  return v == null ? UNRANKED : v;
+}
+function byRank(k) {
+  return (a, b) => (rankOf(a, k) - rankOf(b, k)) || a.name.localeCompare(b.name);
+}
+
+const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, AMBER: 2, STANDARD: 3 };
+const byDeadline = (a, b) => (daysTo(a.deadline) ?? UNRANKED) - (daysTo(b.deadline) ?? UNRANKED);
+
+const SORTS = {
+  default:  { label: 'Priority',      fn: (a, b) => (PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]) || byDeadline(a, b) },
+  deadline: { label: 'Deadline',      fn: byDeadline },
+  global:   { label: 'QS global',     fn: byRank('global') },
+  country:  { label: 'QS in country', fn: byRank('country') },
+  europe:   { label: 'QS in Europe',  fn: byRank('europe') },
+  cost:     { label: 'All-in cost',   fn: (a, b) => (a.totalUsd || 0) - (b.totalUsd || 0) },
+};
+
+let schoolSort = 'default';
+window.__setSort = (v) => { schoolSort = SORTS[v] ? v : 'default'; renderSchools(); };
+
+/* Full rank line for the card body. */
+function rankHtml(s) {
+  const r = s.rank || {};
+  const bits = [];
+  if (r.global != null) bits.push(`<b>#${r.global}</b> global`);
+  if (r.joint  != null) bits.push(`<b>#${r.joint}</b> joint programmes`);
+  if (r.country != null) bits.push(`<b>#${r.country}</b> ${esc(s.country || 'country')}`);
+  if (r.europe != null) bits.push(`<b>#${r.europe}</b> Europe`);
+  return bits.length
+    ? bits.join(' · ')
+    : '<span class="c">not ranked here yet — add it under edit</span>';
+}
+
+/* Short badge for the collapsed card. Joint programmes are ranked in their
+   own QS table, so say so rather than implying a global position. */
+function rankPill(s) {
+  const r = s.rank || {};
+  if (r.global != null) return `<span class="pill qsp">QS #${r.global}</span>`;
+  if (r.joint  != null) return `<span class="pill qsp">QS #${r.joint} joint</span>`;
+  return '';
+}
+
 function renderSchools() {
-  const order = { URGENT:0, HIGH:1, AMBER:2, STANDARD:3 };
   const filtering = !!taskQ || taskMode !== 'all';
-  const schools = activeSchools().slice().sort((a, b) =>
-    (order[a.priority] - order[b.priority]) || ((daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9)));
+  const sorter = (SORTS[schoolSort] || SORTS.default).fn;
+  const schools = activeSchools().slice().sort(sorter);
   const hidden = (data.schools || []).length - schools.length;
+  // How many schools the chosen rank sort can actually place. Sorting by a
+  // rank that most schools do not carry looks broken unless it says so.
+  const rankSort = ['global', 'country', 'europe'].includes(schoolSort);
+  const ranked = rankSort ? schools.filter(s => rankOf(s, schoolSort) !== UNRANKED).length : 0;
 
   const matchCount = filtering
     ? schools.reduce((n, s) => n + (s.tasks || []).filter(taskMatches).length, 0)
@@ -2012,6 +2105,14 @@ function renderSchools() {
       <button class="chip ${taskMode === 'open' ? 'on' : ''}" onclick="__setTaskMode('open')">Outstanding</button>
       <button class="chip ${taskMode === 'overdue' ? 'on' : ''}" onclick="__setTaskMode('overdue')">Overdue</button>
       ${filtering ? `<span class="chip" style="border-style:dashed">${matchCount} match${matchCount === 1 ? '' : 'es'}</span>` : ''}
+    </div>
+    <div class="sortrow">
+      <label for="schoolSort">Sort by</label>
+      <select id="schoolSort" class="sortsel" onchange="__setSort(this.value)">
+        ${Object.entries(SORTS).map(([k, v]) =>
+          `<option value="${k}" ${schoolSort === k ? 'selected' : ''}>${v.label}</option>`).join('')}
+      </select>
+      ${rankSort ? `<span class="c">${ranked} of ${schools.length} ranked · unranked last</span>` : ''}
     </div>
     <div class="grid">
       ${schools.map(s => {
@@ -2031,6 +2132,7 @@ function renderSchools() {
                 <span class="pill p-${s.priority}">${s.priority}</span>
                 ${appStatus(s) !== 'none' ? `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>` : ''}
                 <span class="pill w-${s.waiver}">${s.waiver} waiver</span>
+                ${rankPill(s)}
                 <span>${esc(s.geo)}</span>
                 <span class="mono">${usd(s.totalUsd)}</span>
               </div>
@@ -2064,6 +2166,16 @@ function renderSchools() {
                   <label style="flex-basis:100%">Admissions page
                     <input type="url" class="urlin" id="dl-url-${s.id}" value="${esc(s.url || '')}" placeholder="https://…" aria-label="Admissions page URL">
                   </label>
+                  <div class="rankedit" style="flex-basis:100%">
+                    <div class="recmeta" style="margin:2px 0 4px">QS Executive MBA 2026 ranks — leave blank where the programme is not ranked. Joint programmes (TRIUM, EMBA-Global) sit in a separate QS table, so use the joint field for those.</div>
+                    <div class="rline">
+                      <label>Country <input type="text" class="ctryin" id="dl-ctry-${s.id}" value="${esc(s.country || '')}" placeholder="e.g. UK" aria-label="Country"></label>
+                      <label>Global <input type="number" min="1" step="1" id="dl-rg-${s.id}" value="${s.rank?.global ?? ''}" placeholder="—" aria-label="QS global rank"></label>
+                      <label>In country <input type="number" min="1" step="1" id="dl-rc-${s.id}" value="${s.rank?.country ?? ''}" placeholder="—" aria-label="QS rank within country"></label>
+                      <label>Europe <input type="number" min="1" step="1" id="dl-re-${s.id}" value="${s.rank?.europe ?? ''}" placeholder="—" aria-label="QS rank within Europe"></label>
+                      <label>Joint <input type="number" min="1" step="1" id="dl-rj-${s.id}" value="${s.rank?.joint ?? ''}" placeholder="—" aria-label="QS joint-programme rank"></label>
+                    </div>
+                  </div>
                   <div id="intakes-${s.id}" style="flex-basis:100%">
                     <div class="recmeta" style="margin:2px 0 4px">Start windows: untick one to switch it off. Each window can carry its own application deadline — the tracker follows the earliest upcoming date across windows and rounds.</div>
                     ${(s.intakes || []).map((iw, i) => `
@@ -2094,6 +2206,7 @@ function renderSchools() {
                   <button class="ghost addtask" onclick="__saveDL('${s.id}')">Save</button>
                 </div>
               ` : ''}
+              <b>QS EMBA 2026:</b> ${rankHtml(s)}<br>
               <b>Starts:</b> ${startHtml(s)} · ${esc(s.duration || '—')}<br>
               <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} · ${usd(s.tuitionUsd)} · <b>All-in:</b> ${usd(s.totalUsd)}${s.appFeeUsd ? ` · <b>App fee:</b> ${usd(s.appFeeUsd)}` : ''}<br>
               <b>Waiver:</b> ${esc(s.waiverNote)}<br>
@@ -2267,6 +2380,10 @@ function renderMoney() {
           ['Deadline', s => `${fmtDate(s.deadline)}${s.estimated ? ' <span class="est">est</span>' : ''}`],
           ['Countdown', s => isSent(s) ? APP_LABEL[appStatus(s)] : dueText(daysTo(s.deadline))],
           ['Status', s => appStatus(s) === 'none' ? '—' : `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>`],
+          ['QS global', s => s.rank?.global != null ? `#${s.rank.global}`
+            : s.rank?.joint != null ? `#${s.rank.joint} <span class="c">joint</span>` : '—'],
+          ['QS in country', s => s.rank?.country != null ? `#${s.rank.country} <span class="c">${esc(s.country || '')}</span>` : '—'],
+          ['QS in Europe', s => s.rank?.europe != null ? `#${s.rank.europe}` : '—'],
           ['Priority', s => `<span class="pill p-${s.priority}">${s.priority}</span>`],
           ['Test waiver', s => `<span class="pill w-${s.waiver}">${s.waiver}</span>`],
           ['Starts', s => startHtml(s)],

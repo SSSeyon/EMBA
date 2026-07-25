@@ -412,6 +412,48 @@ const FUNDING = [
   { name: 'Commonwealth Scholarship', type: 'External', detail: 'Nigerian citizens eligible.', action: 'Confirm EMBA eligibility' },
 ];
 
+// Country each programme is based in. Used to group the country ranking and
+// to label it on the card — a rank of 2 means nothing without "of what".
+// Joint programmes are run across countries, so they sit outside that cut.
+const COUNTRY = {
+  'cambridge-emba': 'UK',     'insead-gemba': 'France', 'imd-emba': 'Switzerland',
+  'oxford-said': 'UK',        'lbs-emba': 'UK',         'trium': '',
+  'iese-gemba': 'Spain',      'booth-emba': 'US',       'cambridge-global': 'UK',
+  'wharton-emba': 'US',       'columbia-lbs': '',       'kellogg-emba': 'US',
+  'mit-sloan': 'US',          'hec-paris': 'France',    'escp-emba': 'France',
+  'sda-bocconi': 'Italy',     'imperial-emba': 'UK',    'manchester-gemba': 'UK',
+};
+
+/* QS Executive MBA Rankings 2026 — the most recent edition, published
+   29 April 2026. QS is used because it is the only ranking that publishes
+   all three cuts this app sorts by: a global table, a Europe table, and a
+   per-country order. (Times Higher Education does not rank EMBAs at all.)
+
+   Only ranks read off a published source are filled in here. QS serves the
+   full table from behind a bot check, so the tail of the list could not be
+   read; those schools carry null and show as "—" until you type the number
+   into the school card. A blank is honest — a guess would quietly poison
+   every sort that uses it.
+
+   country and europe are the positions within the global top 10, which is
+   complete and verified, so they are exact for the schools listed.
+
+   joint — QS ranks multi-school programmes in a separate joint-programmes
+   table rather than the global one, so those carry a joint rank instead. */
+const QS_RANKS = {
+  'oxford-said':  { global: 1, country: 1, europe: 1 },
+  'hec-paris':    { global: 2, country: 1, europe: 2 },
+  'mit-sloan':    { global: 3, country: 1 },
+  'iese-gemba':   { global: 4, country: 1, europe: 3 },
+  'kellogg-emba': { global: 5, country: 2 },   // tied 5th with Yale
+  'lbs-emba':     { global: 7, country: 2, europe: 4 },
+  'wharton-emba': { global: 8, country: 4 },
+  'insead-gemba': { global: 9, country: 2, europe: 5 },
+  'trium':        { joint: 1 },
+};
+
+const blankRank = () => ({ global: null, country: null, europe: null, joint: null });
+
 function buildSeed() {
   return {
     seedVersion: SEED_VERSION,
@@ -424,6 +466,8 @@ function buildSeed() {
       url: '',               // admissions page, for checking dates against
       schDeadline: null,     // scholarship deadline where it differs
       docs: [],              // essays and other documents
+      country: COUNTRY[s.id] || '',
+      rank: { ...blankRank(), ...(QS_RANKS[s.id] || {}) },
 
       // Start windows — programmes with two intakes get one entry per window,
       // each of which can be switched off in the school card.

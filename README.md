@@ -350,6 +350,9 @@ schools[18] : { id, name, geo, priority, waiver, waiverNote,
                 url         : admissions page, for checking dates against
                 schDeadline : scholarship deadline, or null
                 appFeeUsd   : application fee, or null
+                country     : where the programme is based, e.g. "UK"
+                rank        : { global, country, europe, joint }
+                              QS Executive MBA 2026; null = not ranked
                 rolledFrom? : a round date that passed and rolled forward
                 intakes[]   : { label, on, deadline }   start windows
                 rounds[]    : { label, date, win }      win = intake label
@@ -427,6 +430,32 @@ field, and the dashboard carries a **Dates to verify** checklist: every
 unconfirmed school, its current date, a link straight to its admissions page,
 and a **confirm** button. Work down the list and it empties.
 
+### Rankings
+
+Each school carries its **QS Executive MBA 2026** position in three cuts —
+global, within its own country, and within Europe — shown on the card and in
+the compare table, with the global position as a badge on the collapsed card.
+The **Sort by** control on the Schools tab reorders the list by any of them
+(as well as by priority, deadline or all-in cost). Schools with no rank sort
+to the bottom, and the control says how many of the list it could place.
+
+QS is used because it is the only ranking that publishes all three of those
+cuts. Times Higher Education does not rank EMBA programmes at all — its
+tables rank universities, which would give Cambridge Judge and Cambridge
+Global the same number and leave TRIUM with none.
+
+Two things to know about the numbers:
+
+- **Only verified ranks are filled in.** QS serves the full table from behind
+  a bot check, so the app ships the positions that could be read from a
+  published source — the global top 10 — and leaves the rest blank. A blank
+  is honest; a guess would quietly corrupt every sort. Fill them in yourself
+  under **edit** on any school; there are fields for country, global, in
+  country, Europe and joint.
+- **Joint programmes are ranked separately.** QS puts multi-school
+  programmes (TRIUM, Columbia/LBS EMBA-Global) in their own table rather than
+  the global one, so they carry a **joint** rank and show as "#1 joint".
+
 ### Money
 
 The **Costs** tab holds four funding pots (savings, employer, scholarship,
@@ -447,7 +476,8 @@ Most day-to-day edits don't need a text editor any more:
   **mark confirmed** on the card (and the dashboard checklist) to clear the
   estimate flag without opening the editor.
 - **Dates, fees, duration, windows and rounds** all live in that same **edit**
-  block, along with the scholarship deadline and the admissions page URL.
+  block, along with the scholarship deadline, the admissions page URL and the
+  QS ranks.
 - **Add a task** — "+ Add task" at the bottom of a school's checklist or the
   My actions tab. Custom tasks show a ✕ to delete them.
 - **Documents and recommenders** — "+ Add document" / "+ Add recommender" on
