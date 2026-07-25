@@ -194,7 +194,50 @@ The **Settings** tab holds everything that isn't day-to-day tracking:
   Reminders below).
 - **Snapshots** — keeps a rolling set of restore points in the cloud, one per
   weekday slot, so you can roll back a bad edit without a local file.
+- **Ask Gemini** — stores your Gemini API keys and picks the active one.
 - **Schools and logos** — switch a school in or out, and set its logo.
+
+### Ask Gemini
+
+The **✦ button** floating above the tab bar opens a chat with Google's
+Gemini. It answers questions about your own shortlist — "which deadline
+should I be worrying about?", "which of these is cheapest all-in?" — as well
+as anything else you want to ask.
+
+**Keys.** Store as many as you like under **Settings → Ask Gemini**: give each
+one a label, paste the key, and tap **Add key**. The row marked **in use** is
+the one that answers; tap **Use this** on any other row to switch. Keys are
+free to create at [aistudio.google.com](https://aistudio.google.com/apikey).
+
+> **Read this before you paste a key in.** Keys live on the same data object
+> as everything else, which is what makes them appear on your other devices —
+> but that object is the shared Firestore document, and that document has no
+> password on it (see *Setting up Sync*). Anyone with the project ID can read
+> a key out of it. A missed deadline is embarrassing; a leaked billable key is
+> expensive. Use a key you are happy to rotate, put a spend cap on its Google
+> Cloud project, and remove it here when you are done. The same warning is on
+> the Settings row itself — this is a deliberate trade, not an oversight.
+
+**Model and fallbacks.** Questions go to **Gemini 3.6 Pro** first. Model names
+come and go, so if that one is not available on your key the app drops to the
+next one down the chain — 3.6 Flash, 3 Pro, 2.5 Pro, 2.5 Flash, 2.0 Flash —
+and keeps going until something answers. **Every reply says which model
+produced it**, and says so again if it had to fall back, because an answer
+from a weaker model is still an answer but you should know that is what you
+are reading. The **Check** button asks Google which models your key can
+actually reach and ticks off the chain against the real list.
+
+A bad key stops the chain immediately rather than failing six times: a key
+that is rejected by one model is rejected by all of them.
+
+**Context.** The tick box in the chat sends a summary of your shortlist —
+schools, deadlines, status, costs, ranks, outstanding tasks — along with the
+question, which is what lets it answer about your actual applications.
+Untick it and only the question goes. Either way the question goes to Google.
+
+The conversation is kept **on this device only**, capped at the last 40
+messages. It is not synced: a transcript has no business in a document with a
+1 MB ceiling that every device overwrites.
 
 ### Showing costs in naira
 
@@ -341,6 +384,9 @@ logos       : { <school id>: "data:image/png;base64,…" }  picked in Settings
 excluded    : { <school id>: true }  schools switched off in Settings
 fx          : { ngnPerUsd: 1650 | null }  naira rate, null = show USD only
 pots        : { savings, employer, scholarship, loan }  each USD or null
+ai          : { keys: [ { id, label, key, addedAt } ],
+                activeId   : which stored key answers, or null
+                useContext : send the shortlist with each question }
 schools[18] : { id, name, geo, priority, waiver, waiverNote,
                 tuitionLocal, ccy, tuitionUsd, totalUsd,
                 duration, start, deadline, deadlineNote, estimated,
@@ -372,7 +418,8 @@ Tasks you add yourself in the app carry `"custom": true` and an id like
 button and which ones are permanent (from `seed.js`).
 
 The Backup file is exactly this object, pretty-printed — readable and
-hand-editable.
+hand-editable. Note that `ai.keys` is in there too, in plain text: a backup
+file is a file with your API keys in it, so treat it accordingly.
 
 ---
 

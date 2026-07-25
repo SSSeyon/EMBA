@@ -545,6 +545,120 @@ th.num{text-align:right}
 /* ---------- Empty ---------- */
 .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:12px}
 
+/* ---------- Ask Gemini ----------
+   The floating button sits ABOVE the tab bar, not beside it: the bar is a
+   centred pill that runs almost the full width of a phone, so anything on
+   the same line would land on top of it. */
+.aifab{
+  position:fixed;right:16px;z-index:31;
+  bottom:calc(88px + env(safe-area-inset-bottom));
+  width:52px;height:52px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--accent);color:var(--on-accent);
+  border:none;box-shadow:0 4px 18px var(--shadow);
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1);
+}
+.aifab svg{width:24px;height:24px;fill:currentColor}
+.aifab:active{transform:scale(.9)}
+/* A dot on the button when no key is stored, so the reason it cannot answer
+   is visible before you tap it. */
+.aifab.nokey::after{
+  content:'';position:absolute;top:2px;right:2px;width:11px;height:11px;
+  border-radius:50%;background:var(--amber);box-shadow:0 0 0 2px var(--ink);
+}
+
+.aisheet{position:fixed;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center}
+.aisheet[hidden]{display:none}
+.aibackdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+.aipanel{
+  position:relative;display:flex;flex-direction:column;
+  width:min(620px,100%);height:82vh;height:82dvh;max-height:860px;
+  background:var(--ink-2);border:1px solid var(--line);
+  border-radius:18px 18px 0 0;box-shadow:0 -8px 40px var(--shadow);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+@media(min-width:641px){
+  .aisheet{align-items:center}
+  .aipanel{border-radius:18px;height:min(78vh,720px)}
+}
+.aihead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);flex-shrink:0}
+.aititle{font-family:'Fraunces',serif;font-size:17px;font-weight:600;flex:1;min-width:0}
+.aititle .aimodel{
+  display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  font-weight:400;color:var(--muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.aihx{font-size:12px;color:var(--muted);padding:8px 10px;border-radius:8px;flex-shrink:0}
+.aihx:hover{color:var(--paper);background:var(--ink-3)}
+
+.aimsgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+.aimsg{max-width:88%;font-size:14px;line-height:1.6}
+.aimsg.me{align-self:flex-end;background:var(--accent-lo);border:1px solid var(--accent);border-radius:14px 14px 4px 14px;padding:9px 13px;white-space:pre-wrap;word-wrap:break-word}
+.aimsg.ai{align-self:flex-start;max-width:100%}
+.aimsg.ai .aibody{background:var(--ink-3);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:11px 13px;word-wrap:break-word;overflow-wrap:anywhere}
+.aimsg.err .aibody{border-color:var(--red);background:var(--red-lo)}
+.aibody p{margin:0 0 8px}
+.aibody p:last-child{margin-bottom:0}
+.aibody ul{margin:0 0 8px;padding-left:20px}
+.aibody li{margin:2px 0}
+.aibody code{font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--ink);padding:1px 5px;border-radius:4px}
+.aibody h4{font-size:14px;font-weight:700;margin:10px 0 4px}
+.aibody h4:first-child{margin-top:0}
+/* The model that produced the answer, stated on every single reply — a
+   fallback means you are not reading what you think you are reading. */
+.aiby{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);margin-top:5px;padding-left:2px}
+.aiby b{color:var(--accent);font-weight:600}
+.aiby .fell{color:var(--amber)}
+.aiempty{margin:auto;text-align:center;color:var(--muted);font-size:13px;line-height:1.7;padding:0 12px}
+.aiempty b{display:block;color:var(--paper);font-size:15px;margin-bottom:6px}
+.aidots{display:inline-flex;gap:4px;align-items:center}
+.aidots i{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:aiblink 1.2s infinite}
+.aidots i:nth-child(2){animation-delay:.2s}
+.aidots i:nth-child(3){animation-delay:.4s}
+@keyframes aiblink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+
+.aifoot{border-top:1px solid var(--line);padding:10px 12px 12px;flex-shrink:0}
+.aictx{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);padding:0 4px 8px}
+.aictx input{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
+.aictx label{cursor:pointer}
+/* The composer grows with the text rather than scrolling inside a fixed
+   box — align-items:flex-end keeps the send button pinned to the last line
+   as the field gets taller. */
+.aicomposer{display:flex;align-items:flex-end;gap:8px}
+.aicomposer textarea{
+  flex:1;min-width:0;resize:none;overflow-y:auto;
+  min-height:44px;max-height:168px;
+  background:var(--ink-3);border:1px solid var(--line);border-radius:14px;
+  color:var(--paper);font:inherit;font-size:14px;line-height:1.5;
+  padding:11px 14px;
+}
+.aicomposer textarea:focus{outline:none;border-color:var(--accent)}
+.aisend{
+  width:44px;height:44px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent);color:var(--on-accent);font-size:18px;line-height:1;
+}
+.aisend:disabled{opacity:.4;cursor:default}
+.aisend:active:not(:disabled){opacity:.75}
+
+/* Settings — stored keys. */
+.keyrow .setlbl > b{font-family:'IBM Plex Mono',monospace;font-size:13px}
+.keymask{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.keyrow.on{background:var(--accent-lo);border-radius:8px;padding-left:10px;padding-right:10px;margin:2px -10px}
+.keyrow .usebtn{font-size:12px;padding:8px 12px;min-height:44px}
+.keyrow .inuse{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);flex-shrink:0}
+.keyadd{display:flex;flex-wrap:wrap;gap:8px;padding:0 0 14px}
+.keyadd input{
+  background:var(--ink-3);border:1px solid var(--line);border-radius:10px;
+  color:var(--paper);font:inherit;font-size:13px;padding:11px 12px;min-height:44px;
+}
+.keyadd input:focus{outline:none;border-color:var(--accent)}
+.keyadd .klabel{width:120px;flex:0 1 120px}
+.keyadd .kval{flex:1 1 180px;min-width:0;font-family:'IBM Plex Mono',monospace;font-size:12px}
+.keywarn{
+  font-size:11.5px;line-height:1.6;color:var(--amber);
+  background:var(--amber-lo);border-radius:8px;padding:9px 11px;margin:0 0 14px;
+}
+
 /* ---------- Toast ---------- */
 #toast{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120%);
@@ -590,6 +704,10 @@ th.num{text-align:right}
      long scroll and squeeze the school name into three lines. */
   .logorow .setbtn{width:auto;flex:0 0 auto}
   .logorow .setlbl{flex:1 1 0}
+  /* Same exception for the stored keys: a full-width "Use this" doubles the
+     height of every row, and the label beside it is two short lines. */
+  .keyrow .setbtn{width:auto;flex:0 0 auto}
+  .keyrow .setlbl{flex:1 1 0}
 }
 </style>
 </head>
@@ -651,6 +769,35 @@ th.num{text-align:right}
   </button>
 </nav>
 
+<!-- Ask Gemini. Outside <main> for the same reason as <nav>: position:fixed
+     needs the viewport as its containing block, not a filtered ancestor. -->
+<button class="aifab" id="aifab" aria-label="Ask Gemini" title="Ask Gemini">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 5.6L19.5 9.5 13.9 11.4 12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2z"/><path d="M18.5 14.5l.8 2.4 2.4.8-2.4.8-.8 2.4-.8-2.4-2.4-.8 2.4-.8.8-2.4z"/></svg>
+</button>
+
+<div class="aisheet" id="aisheet" role="dialog" aria-modal="true" aria-label="Ask Gemini" hidden>
+  <div class="aibackdrop" id="aibackdrop"></div>
+  <div class="aipanel">
+    <div class="aihead">
+      <div class="aititle">Ask Gemini<span class="aimodel" id="aimodel"></span></div>
+      <button class="aihx" id="aiclear">Clear</button>
+      <button class="aihx" id="aiclose" aria-label="Close">✕</button>
+    </div>
+    <div class="aimsgs" id="aimsgs"></div>
+    <div class="aifoot">
+      <div class="aictx">
+        <input type="checkbox" id="aictx" aria-label="Send my tracker as context">
+        <label for="aictx">Send my schools, deadlines and costs as context</label>
+      </div>
+      <div class="aicomposer">
+        <textarea id="aiin" rows="1" placeholder="Ask about your applications…"
+                  aria-label="Your question"></textarea>
+        <button class="aisend" id="aisend" aria-label="Send">↑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="seed.js"></script>
@@ -666,7 +813,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.16.0';
+const APP_VERSION = 'v1.17.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -926,6 +1073,23 @@ function migrate(d) {
     changed = true;
   }
 
+  /* Gemini — your API keys and which one is currently in use. Kept on the
+     data object so it rides the existing sync: add a key on the laptop and
+     the phone has it too. See the security note above __ask() before you
+     decide that is what you want. */
+  if (!d.ai || typeof d.ai !== 'object') {
+    d.ai = { keys: [], activeId: null, useContext: true };
+    changed = true;
+  }
+  if (!Array.isArray(d.ai.keys)) { d.ai.keys = []; changed = true; }
+  if (d.ai.activeId === undefined) { d.ai.activeId = null; changed = true; }
+  if (d.ai.useContext === undefined) { d.ai.useContext = true; changed = true; }
+  // A key deleted on another device leaves activeId pointing at nothing.
+  if (d.ai.activeId && !d.ai.keys.some((k) => k.id === d.ai.activeId)) {
+    d.ai.activeId = d.ai.keys[0]?.id || null;
+    changed = true;
+  }
+
   if (d.seedVersion !== SEED_VERSION) { d.seedVersion = SEED_VERSION; changed = true; }
   return changed;
 }
@@ -1088,6 +1252,10 @@ function start() {
   data = loadData();
   if (!data) {
     data = buildSeed();
+    // buildSeed covers the schools; migrate adds the containers that live
+    // outside them (logos, fx, pots, ai) so a first run is not missing the
+    // very fields the rest of the app assumes are there.
+    migrate(data);
     save();
     toast('Tracker set up with your 18 schools');
   } else {
@@ -1096,6 +1264,7 @@ function start() {
     if (migrated || rolled) save();
     if (rolled) toast('A missed round rolled forward to the next one — see the school card');
   }
+  loadChat();
   render();
 
   waitForSync(() => connectSync());
@@ -2488,6 +2657,44 @@ function renderSettings() {
     <div class="set">
       <div class="setrow">
         <div class="setlbl">
+          <b>Ask Gemini</b>
+          <span>The ✦ button floating above the tab bar opens a chat with Google's Gemini. Store as many API keys as you like below and switch between them — the one marked <b>in use</b> is what answers. Keys are free from aistudio.google.com.</span>
+        </div>
+      </div>
+      <div class="keywarn">Your keys sync to every device through the same shared document as the rest of your data, and that document has no password on it. Use a key you are happy to rotate, put a spend cap on its project, and remove it here when you are finished with it.</div>
+      <div class="keyadd">
+        <input type="text" class="klabel" id="kLabel" placeholder="Label" aria-label="A name for this key">
+        <input type="password" class="kval" id="kVal" placeholder="AIza…" autocomplete="off"
+               spellcheck="false" aria-label="Gemini API key">
+        <button class="setbtn" onclick="__aiAddKey()">Add key</button>
+      </div>
+      ${aiKeys().length ? aiKeys().map((k) => {
+        const on = k.id === data.ai.activeId;
+        return `
+        <div class="setrow keyrow${on ? ' on' : ''}">
+          <div class="setlbl">
+            <b>${esc(k.label)}</b>
+            <span class="keymask">${esc(maskKey(k.key))}</span>
+          </div>
+          ${on ? '<span class="inuse">in use</span>'
+               : `<button class="setbtn usebtn" onclick="__aiUseKey('${k.id}')">Use this</button>`}
+          <button class="tdel" title="Remove this key" aria-label="Remove ${esc(k.label)}"
+                  onclick="__aiDelKey('${k.id}')">✕</button>
+        </div>`;
+      }).join('') : '<div class="setnote">No keys stored yet — the ✦ button will say so too.</div>'}
+      <div class="setrow">
+        <div class="setlbl">
+          <b>Model and fallbacks</b>
+          <span>Questions go to <b>${esc(AI_MODELS[0].label)}</b> first. If that model is unavailable on your key, the app drops to the next one down — ${AI_MODELS.slice(1).map((m) => esc(m.label)).join(', ')} — and every answer says which model actually produced it.</span>
+        </div>
+        <button class="setbtn" onclick="__aiCheckModels()">Check</button>
+      </div>
+      <div id="kModels"></div>
+    </div>
+
+    <div class="set">
+      <div class="setrow">
+        <div class="setlbl">
           <b>Device notifications</b>
           <span>Registers this device for a daily push of everything due in the next 7 days — it arrives even when the app is closed. Needs the sending side to be live once: see <b>PUSH-SETUP.md</b> in the app folder (a free GitHub Action, about five minutes).</span>
         </div>
@@ -2544,6 +2751,424 @@ function renderSettings() {
   hydrateLogos($('#p-settings'));
 }
 
+/* ================================================================
+   Ask Gemini
+   ----------------------------------------------------------------
+   A floating button opens a chat sheet that puts a question to the
+   Gemini API using one of the keys you have stored in Settings.
+
+   SECURITY NOTE — read this before you paste a key in. Your keys are
+   held on the data object, which means they ride the same sync as
+   everything else and land in the shared Firestore document. That
+   document is deliberately wide open (`allow read, write: if true`,
+   see sync.js), so anyone who has the project ID can read the keys
+   out of it. A Gemini key is a billable credential; a tracker
+   deadline is not. Use a key you are willing to rotate, keep it on a
+   project with a spend cap, and delete it here the moment you are
+   done with it. Nothing about this is hidden from you — the warning
+   is repeated on the Settings row that adds one.
+   ================================================================ */
+
+/* Tried in order, top first, until one answers. The chain exists because
+   model names come and go: a name that 404s today is skipped rather than
+   breaking the feature, and you still get an answer from whatever is next
+   down the list. Every reply says which one actually produced it. */
+const AI_MODELS = [
+  { id: 'gemini-3.6-pro',        label: 'Gemini 3.6 Pro' },
+  { id: 'gemini-3.6-flash',      label: 'Gemini 3.6 Flash' },
+  { id: 'gemini-3-pro-preview',  label: 'Gemini 3 Pro' },
+  { id: 'gemini-2.5-pro',        label: 'Gemini 2.5 Pro' },
+  { id: 'gemini-2.5-flash',      label: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.0-flash',      label: 'Gemini 2.0 Flash' },
+];
+const AI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
+const modelLabel = (id) => AI_MODELS.find((m) => m.id === id)?.label || id;
+
+/* ---- Keys ---- */
+function aiKeys()   { return (data && data.ai && data.ai.keys) || []; }
+function activeKey() {
+  const ks = aiKeys();
+  return ks.find((k) => k.id === (data.ai && data.ai.activeId)) || null;
+}
+/* Enough of the key to tell two of them apart, not enough to use. */
+const maskKey = (k) => (k && k.length > 8) ? k.slice(0, 4) + '…' + k.slice(-4) : '••••';
+
+/* ---- Chat history ----
+   Deliberately NOT on the data object: it would push every message into
+   the synced document, which has a 1 MB ceiling and no business holding a
+   transcript. Local to this browser, capped, survives a reload. */
+const AI_CHAT_KEY = 'emba-ai-chat';
+const AI_CHAT_MAX = 40;
+let aiChat = [];
+let aiBusy = false;
+
+function loadChat() {
+  try {
+    const raw = localStorage.getItem(AI_CHAT_KEY);
+    aiChat = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(aiChat)) aiChat = [];
+  } catch (e) { aiChat = []; }
+}
+function saveChat() {
+  aiChat = aiChat.slice(-AI_CHAT_MAX);
+  try { localStorage.setItem(AI_CHAT_KEY, JSON.stringify(aiChat)); } catch (e) {}
+}
+
+/* ---- Tracker context ----
+   What the model is told about your applications, so "which deadline is
+   next?" has an answer. Off by unticking the box in the sheet — that
+   sends the question alone and nothing about your schools. */
+function aiContext() {
+  const lines = ['The user is applying to Executive MBA programmes for a 2027 start.',
+    `Today is ${todayISO()}.`, '', 'THEIR SHORTLIST:'];
+  activeSchools()
+    .slice().sort((a, b) => (daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9))
+    .forEach((s) => {
+      const n = daysTo(s.deadline);
+      const open = (s.tasks || []).filter((t) => !t.done).length;
+      lines.push([
+        `- ${s.name} (${s.geo || '?'})`,
+        `deadline ${s.deadline || 'not set'}${n != null ? ` — ${dueText(n)}` : ''}`,
+        s.deadlineNote ? `round: ${s.deadlineNote}` : null,
+        `status: ${s.status || 'none'}`,
+        `starts ${s.start || '?'}`,
+        s.totalUsd ? `all-in about $${Number(s.totalUsd).toLocaleString('en-GB')}` : null,
+        s.rank?.global != null ? `QS global #${s.rank.global}` : null,
+        `${open} task${open === 1 ? '' : 's'} outstanding`,
+      ].filter(Boolean).join('; '));
+    });
+  const acts = (data.actions || []).filter((a) => !a.done);
+  if (acts.length) {
+    lines.push('', 'OUTSTANDING ACTIONS:');
+    acts.forEach((a) => lines.push(`- ${a.label}${a.due ? ` (due ${a.due})` : ''}`));
+  }
+  const r = fxRate();
+  if (r) lines.push('', `Costs are in USD; their exchange rate is ₦${r} per $1.`);
+  return lines.join('\n');
+}
+
+const AI_SYSTEM =
+  'You are a concise admissions adviser inside an EMBA application tracker. ' +
+  'Answer in British English. Prefer short paragraphs and bullet lists over long prose. ' +
+  'When the tracker data below is relevant, use it and refer to schools by name. ' +
+  'If the data does not contain what is needed, say so plainly rather than guessing at ' +
+  'a deadline or a fee — a wrong date here costs the user an application.';
+
+/* ---- One call to one model ----
+   Resolves with the text, or throws an object saying whether the problem
+   was this model (fall through to the next) or the key/request itself
+   (stop — trying five more models with a dead key just wastes time). */
+async function callModel(modelId, key, prompt, history, withContext) {
+  const contents = history.map((m) => ({
+    role: m.role === 'ai' ? 'model' : 'user',
+    parts: [{ text: m.text }],
+  }));
+  contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+  const sys = withContext ? AI_SYSTEM + '\n\n' + aiContext() : AI_SYSTEM;
+
+  let res;
+  try {
+    res = await fetch(AI_ENDPOINT + encodeURIComponent(modelId) + ':generateContent', {
+      method: 'POST',
+      // The key goes in a header, not the query string: a URL ends up in
+      // logs, history and referrers, and this one is billable.
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: sys }] },
+        generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
+      }),
+    });
+  } catch (e) {
+    // No response at all — offline or blocked. Not this model's fault, so
+    // there is nothing to be gained by trying the next five.
+    throw { fatal: true, msg: 'Could not reach Google. Check the connection and try again.' };
+  }
+
+  let body = null;
+  try { body = await res.json(); } catch (e) {}
+
+  if (!res.ok) {
+    const err = body?.error || {};
+    const status = err.status || '';
+    const msg = err.message || `HTTP ${res.status}`;
+    // A bad key fails identically on every model.
+    if (res.status === 401 || /API_KEY|API key not valid|UNAUTHENTICATED/i.test(status + msg)) {
+      throw { fatal: true, msg: 'That API key was rejected. Check it in Settings.' };
+    }
+    if (status === 'PERMISSION_DENIED' && !/model/i.test(msg)) {
+      throw { fatal: true, msg: 'The key is valid but the Generative Language API is not enabled for its project.' };
+    }
+    // Everything else — 404 unknown model, quota, overload — is this model's
+    // problem. Fall through and let the next one try.
+    throw { fatal: false, msg: `${modelId}: ${msg}` };
+  }
+
+  const blocked = body?.promptFeedback?.blockReason;
+  if (blocked) throw { fatal: true, msg: `Gemini declined to answer that (${blocked}).` };
+
+  const cand = body?.candidates?.[0];
+  const text = (cand?.content?.parts || []).map((p) => p.text || '').join('').trim();
+  if (!text) {
+    // An empty answer with a stop reason is a real refusal; an empty answer
+    // with no reason is the model misbehaving, which the next one may not.
+    const why = cand?.finishReason;
+    if (why && why !== 'STOP') throw { fatal: true, msg: `Gemini stopped early (${why}).` };
+    throw { fatal: false, msg: `${modelId}: empty response` };
+  }
+  return text;
+}
+
+/* Walk the chain until something answers. */
+async function askGemini(prompt, history, withContext) {
+  const k = activeKey();
+  if (!k) throw { fatal: true, msg: 'No API key selected. Add one under Settings → Ask Gemini.' };
+
+  const skipped = [];
+  for (const m of AI_MODELS) {
+    try {
+      const text = await callModel(m.id, k.key, prompt, history, withContext);
+      return { text, model: m.id, skipped };
+    } catch (e) {
+      if (e.fatal) throw e;
+      skipped.push({ id: m.id, msg: e.msg });
+      console.warn('Gemini fallback:', e.msg);
+    }
+  }
+  throw { fatal: true, msg: 'Every model in the fallback chain refused: ' + skipped.map((s) => s.msg).join(' | ') };
+}
+
+/* ---- Rendering ----
+   Gemini answers in markdown. This covers the parts it actually uses —
+   headings, bullets, bold, inline code — and escapes everything first, so
+   a reply can never inject markup into the page. */
+function mdToHtml(src) {
+  const inline = (t) => esc(t)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+
+  const out = [];
+  let list = null;
+  const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+
+  String(src).split('\n').forEach((raw) => {
+    const line = raw.replace(/\s+$/, '');
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    const heading = line.match(/^#{1,6}\s+(.*)$/);
+    if (bullet || numbered) {
+      const want = bullet ? 'ul' : 'ol';
+      if (list !== want) { closeList(); out.push(`<${want}>`); list = want; }
+      out.push(`<li>${inline((bullet || numbered)[1])}</li>`);
+    } else if (heading) {
+      closeList(); out.push(`<h4>${inline(heading[1])}</h4>`);
+    } else if (!line.trim()) {
+      closeList();
+    } else {
+      closeList(); out.push(`<p>${inline(line)}</p>`);
+    }
+  });
+  closeList();
+  return out.join('');
+}
+
+function renderChat() {
+  const box = $('#aimsgs');
+  if (!box) return;
+  const key = activeKey();
+
+  if (!aiChat.length && !aiBusy) {
+    box.innerHTML = key
+      ? `<div class="aiempty"><b>Ask anything about your applications</b>
+           Using the key <span class="mono">${esc(key.label)}</span>. Try “which deadline
+           should I be worrying about?” or “draft three bullet points on why an EMBA now”.</div>`
+      : `<div class="aiempty"><b>No API key yet</b>
+           Add a Gemini API key under <b>Settings → Ask Gemini</b>, then come back.
+           Keys are free to create at aistudio.google.com.</div>`;
+    return;
+  }
+
+  box.innerHTML = aiChat.map((m) => {
+    if (m.role === 'me') return `<div class="aimsg me">${esc(m.text)}</div>`;
+    // Every answer states the model that produced it. If the default was
+    // skipped, say which one and why — an answer from a weaker model is
+    // still an answer, but you should know that is what you are reading.
+    const by = m.error ? '' : `
+      <div class="aiby">Answered by <b>${esc(modelLabel(m.model))}</b>
+        <span class="mono">${esc(m.model)}</span>${
+        (m.skipped && m.skipped.length)
+          ? ` · <span class="fell">fell back from ${esc(modelLabel(m.skipped[0].id))}</span>`
+          : ''}</div>`;
+    return `<div class="aimsg ai${m.error ? ' err' : ''}">
+      <div class="aibody">${m.error ? esc(m.text) : mdToHtml(m.text)}</div>${by}</div>`;
+  }).join('');
+
+  if (aiBusy) {
+    box.insertAdjacentHTML('beforeend', `
+      <div class="aimsg ai"><div class="aibody">
+        <span class="aidots"><i></i><i></i><i></i></span></div></div>`);
+  }
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ---- The sheet ---- */
+function aiOpen() {
+  const sheet = $('#aisheet');
+  sheet.hidden = false;
+  // Stop the page behind scrolling under the sheet when the message list
+  // hits its end — otherwise a flick keeps going and the tracker moves.
+  document.body.style.overflow = 'hidden';
+  $('#aictx').checked = !!(data.ai && data.ai.useContext);
+  renderChat();
+  aiSyncModelLine();
+  // Not on a phone: focusing raises the on-screen keyboard over the sheet
+  // before there is anything to read.
+  if (window.matchMedia('(min-width:641px)').matches) $('#aiin').focus();
+}
+function aiClose() {
+  $('#aisheet').hidden = true;
+  document.body.style.overflow = '';
+}
+
+function aiSyncModelLine() {
+  const el = $('#aimodel');
+  if (!el) return;
+  const k = activeKey();
+  const last = [...aiChat].reverse().find((m) => m.role === 'ai' && m.model);
+  el.textContent = !k ? 'no API key selected'
+    : last ? `${modelLabel(last.model)} · key ${k.label}`
+    : `${modelLabel(AI_MODELS[0].id)} · key ${k.label}`;
+}
+
+/* The composer grows with what you type instead of scrolling inside a
+   fixed box. Reset to auto first, or scrollHeight only ever climbs. */
+function aiGrow() {
+  const el = $('#aiin');
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 168) + 'px';
+}
+
+async function aiSend() {
+  const el = $('#aiin');
+  const q = el.value.trim();
+  if (!q || aiBusy) return;
+
+  if (!activeKey()) { toast('Add a Gemini API key under Settings first'); return; }
+
+  // The turns already exchanged, so follow-ups keep their thread. Errors are
+  // left out — a failure notice is not something the model should reply to.
+  const history = aiChat.filter((m) => !m.error).slice(-12)
+    .map((m) => ({ role: m.role, text: m.text }));
+
+  aiChat.push({ role: 'me', text: q, ts: Date.now() });
+  el.value = ''; aiGrow();
+  aiBusy = true;
+  $('#aisend').disabled = true;
+  renderChat();
+
+  try {
+    const { text, model, skipped } = await askGemini(q, history, !!(data.ai && data.ai.useContext));
+    aiChat.push({ role: 'ai', text, model, skipped, ts: Date.now() });
+  } catch (e) {
+    aiChat.push({ role: 'ai', text: e.msg || 'Something went wrong.', error: true, ts: Date.now() });
+  } finally {
+    aiBusy = false;
+    $('#aisend').disabled = false;
+    saveChat();
+    renderChat();
+    aiSyncModelLine();
+  }
+}
+
+$('#aifab').addEventListener('click', aiOpen);
+$('#aiclose').addEventListener('click', aiClose);
+$('#aibackdrop').addEventListener('click', aiClose);
+$('#aisend').addEventListener('click', aiSend);
+$('#aiclear').addEventListener('click', () => {
+  if (!aiChat.length) return;
+  if (!confirm('Clear this conversation?')) return;
+  aiChat = []; saveChat(); renderChat(); aiSyncModelLine();
+});
+$('#aictx').addEventListener('change', (e) => {
+  data.ai.useContext = e.target.checked;
+  save();
+});
+$('#aiin').addEventListener('input', aiGrow);
+$('#aiin').addEventListener('keydown', (e) => {
+  // Enter inserts a newline — this is a phone-first app and Enter is how you
+  // get a second line. Ctrl/Cmd+Enter sends, as does the button.
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); aiSend(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('#aisheet').hidden) aiClose();
+});
+
+/* The button carries a dot until a key is stored, so the reason it cannot
+   answer is visible without opening it. */
+function refreshFab() {
+  const fab = $('#aifab');
+  if (fab) fab.classList.toggle('nokey', !activeKey());
+}
+
+/* ---- Settings: stored keys ---- */
+window.__aiAddKey = () => {
+  const labelEl = $('#kLabel'), valEl = $('#kVal');
+  const key = valEl.value.trim();
+  if (!key) { toast('Paste a key first'); return; }
+  if (aiKeys().some((k) => k.key === key)) { toast('That key is already stored'); return; }
+  const label = labelEl.value.trim() || `Key ${aiKeys().length + 1}`;
+  const id = 'k' + Date.now().toString(36);
+  data.ai.keys.push({ id, label, key, addedAt: Date.now() });
+  // First key in becomes the active one — nobody adds a key meaning not to
+  // use it, and one more tap to switch it on is friction for nothing.
+  if (!data.ai.activeId) data.ai.activeId = id;
+  save(); renderSettings(); refreshFab(); aiSyncModelLine();
+  toast(`Key “${label}” stored and syncing`);
+};
+
+window.__aiUseKey = (id) => {
+  data.ai.activeId = id;
+  save(); renderSettings(); refreshFab(); aiSyncModelLine();
+  toast(`Now using “${aiKeys().find((k) => k.id === id)?.label || id}”`);
+};
+
+window.__aiDelKey = (id) => {
+  const k = aiKeys().find((x) => x.id === id);
+  if (!confirm(`Remove the key “${k?.label || id}”? It goes from every synced device.`)) return;
+  data.ai.keys = aiKeys().filter((x) => x.id !== id);
+  if (data.ai.activeId === id) data.ai.activeId = data.ai.keys[0]?.id || null;
+  save(); renderSettings(); refreshFab(); aiSyncModelLine();
+  toast('Key removed');
+};
+
+/* Asks the key which models it can actually reach. The fallback chain is a
+   list of names, and names change — this is how you find out what is really
+   there rather than discovering it one failed request at a time. */
+window.__aiCheckModels = async () => {
+  const box = $('#kModels');
+  const k = activeKey();
+  if (!k) { toast('Select a key first'); return; }
+  box.innerHTML = '<div class="setnote">Asking Google what this key can reach…</div>';
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models',
+      { headers: { 'x-goog-api-key': k.key } });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body?.error?.message || `HTTP ${res.status}`);
+    const avail = new Set((body.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m) => String(m.name).replace(/^models\//, '')));
+    box.innerHTML = `<div class="setnote">${AI_MODELS.map((m) =>
+      `${avail.has(m.id) ? '✓' : '✗'} ${esc(m.label)} <span class="mono">${esc(m.id)}</span>`
+    ).join('<br>')}<br><br>${avail.size} model${avail.size === 1 ? '' : 's'} reachable in total.
+      A ✗ is skipped automatically — the first ✓ down the list is what answers.</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="setnote">Could not check: ${esc(e.message || e)}</div>`;
+  }
+};
+
 /* ---------------- Render ---------------- */
 function render() {
   if (!data) return;
@@ -2553,6 +3178,7 @@ function render() {
   renderActions();
   renderMoney();
   renderSettings();
+  refreshFab();
 }
 
 /* ---------------- Daily snapshots ----------------
