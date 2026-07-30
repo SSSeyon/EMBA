@@ -191,7 +191,10 @@ nav{
 }
 
 /* Clear the bar so the last row of content is never trapped under it. */
-main{max-width:1240px;margin:0 auto;padding:24px 20px calc(104px + env(safe-area-inset-bottom))}
+/* --pad is the page gutter. Anything that deliberately bleeds past it (the
+   runway strip) reads it back rather than hard-coding 20px, which would
+   overflow the page at the narrower phone gutter below. */
+main{--pad:20px;max-width:1240px;margin:0 auto;padding:24px var(--pad) calc(104px + env(safe-area-inset-bottom))}
 .panel{display:none}
 .panel.on{display:block}
 
@@ -545,53 +548,35 @@ th.num{text-align:right}
 /* ---------- Empty ---------- */
 .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:12px}
 
-/* ---------- Ask Gemini ----------
-   The floating button sits ABOVE the tab bar, not beside it: the bar is a
-   centred pill that runs almost the full width of a phone, so anything on
-   the same line would land on top of it. */
-.aifab{
-  position:fixed;right:16px;z-index:31;
-  bottom:calc(88px + env(safe-area-inset-bottom));
-  width:52px;height:52px;border-radius:50%;
-  display:grid;place-items:center;
-  background:var(--accent);color:var(--on-accent);
-  border:none;box-shadow:0 4px 18px var(--shadow);
-  transition:transform .18s cubic-bezier(.34,1.56,.64,1);
-}
-.aifab svg{width:24px;height:24px;fill:currentColor}
-.aifab:active{transform:scale(.9)}
-/* A dot on the button when no key is stored, so the reason it cannot answer
-   is visible before you tap it. */
-.aifab.nokey::after{
-  content:'';position:absolute;top:2px;right:2px;width:11px;height:11px;
-  border-radius:50%;background:var(--amber);box-shadow:0 0 0 2px var(--ink);
-}
-
-.aisheet{position:fixed;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center}
-.aisheet[hidden]{display:none}
-.aibackdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
-.aipanel{
-  position:relative;display:flex;flex-direction:column;
-  width:min(620px,100%);height:82vh;height:82dvh;max-height:860px;
-  background:var(--ink-2);border:1px solid var(--line);
-  border-radius:18px 18px 0 0;box-shadow:0 -8px 40px var(--shadow);
-  padding-bottom:env(safe-area-inset-bottom);
-}
-@media(min-width:641px){
-  .aisheet{align-items:center}
-  .aipanel{border-radius:18px;height:min(78vh,720px)}
-}
-.aihead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);flex-shrink:0}
-.aititle{font-family:'Fraunces',serif;font-size:17px;font-weight:600;flex:1;min-width:0}
+/* ---------- Ask ----------
+   A tab of its own rather than a floating sheet. The composer is the one
+   fixed piece: it sits just above the tab bar so the thread scrolls under
+   it, which is why the message list carries bottom padding to match. */
+.aihead{display:flex;align-items:center;gap:10px;padding:0 0 12px;flex-shrink:0}
+.aititle{font-family:'Fraunces',serif;font-size:21px;font-weight:600;flex:1;min-width:0}
 .aititle .aimodel{
   display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
-  font-weight:400;color:var(--muted);margin-top:2px;
+  font-weight:400;color:var(--muted);margin-top:3px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .aihx{font-size:12px;color:var(--muted);padding:8px 10px;border-radius:8px;flex-shrink:0}
 .aihx:hover{color:var(--paper);background:var(--ink-3)}
 
-.aimsgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+.aimsgs{display:flex;flex-direction:column;gap:14px;padding-bottom:8px}
+
+/* Openers, so a blank Ask tab is still a place you can start from. */
+.aisugs{display:grid;gap:8px;margin-top:16px}
+.aisug{
+  display:flex;align-items:center;gap:11px;width:100%;
+  padding:13px 14px;border:1px solid var(--line);border-radius:12px;
+  background:var(--ink-2);text-align:left;
+}
+.aisug:active{background:var(--ink-3)}
+.aisug .tag{
+  font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;
+  color:var(--accent);flex-shrink:0;
+}
+.aisug .q{flex:1;min-width:0;font-size:13.5px;line-height:1.35}
 .aimsg{max-width:88%;font-size:14px;line-height:1.6}
 .aimsg.me{align-self:flex-end;background:var(--accent-lo);border:1px solid var(--accent);border-radius:14px 14px 4px 14px;padding:9px 13px;white-space:pre-wrap;word-wrap:break-word}
 .aimsg.ai{align-self:flex-start;max-width:100%}
@@ -617,8 +602,17 @@ th.num{text-align:right}
 .aidots i:nth-child(3){animation-delay:.4s}
 @keyframes aiblink{0%,60%,100%{opacity:.25}30%{opacity:1}}
 
-.aifoot{border-top:1px solid var(--line);padding:10px 12px 12px;flex-shrink:0}
-.aictx{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);padding:0 4px 8px}
+/* Fixed above the tab bar. 84px clears the nav pill (60px tall, sitting
+   12px off the bottom) with a little air between the two. */
+.aifoot{
+  position:fixed;z-index:29;left:50%;transform:translateX(-50%);
+  bottom:calc(84px + env(safe-area-inset-bottom));
+  width:min(560px,calc(100% - 24px));
+  background:var(--ink-2);border:1px solid var(--line);border-radius:22px;
+  box-shadow:var(--lift);padding:8px 10px;
+}
+.aifoot[hidden]{display:none}
+.aictx{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);padding:2px 4px 8px}
 .aictx input{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
 .aictx label{cursor:pointer}
 /* The composer grows with the text rather than scrolling inside a fixed
@@ -659,6 +653,201 @@ th.num{text-align:right}
   background:var(--amber-lo);border-radius:8px;padding:9px 11px;margin:0 0 14px;
 }
 
+/* ================================================================
+   Shape over prose
+   ----------------------------------------------------------------
+   The blocks below are the redesign: the things that used to be
+   sentences and tables — a paragraph of bold labels, an 18-row
+   runway, three stacked cost tables — become a ring, a strip of
+   cards, four panes and one chart. Nothing here introduces a new
+   colour or font; it is the same tokens arranged so the screen can
+   be read at a glance rather than parsed.
+   ================================================================ */
+
+/* ---- Home: countdown ring + hero ---- */
+.hero2{display:flex;align-items:center;gap:16px;padding:2px 0 18px}
+.ringwrap{position:relative;width:104px;height:104px;flex-shrink:0}
+.ringwrap svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
+.ringwrap .track{fill:none;stroke:var(--ink-3)}
+.ringwrap .arc{fill:none;stroke-linecap:round;transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1)}
+.ringmid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ringmid .n{font-family:'Fraunces',serif;font-size:32px;font-weight:700;line-height:1;letter-spacing:-.03em}
+.ringmid .u{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:var(--muted);margin-top:3px}
+.hero2 .who{min-width:0}
+.hero2 .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.13em;color:var(--muted);text-transform:none}
+.hero2 .nm{display:flex;align-items:center;gap:9px;margin-top:7px;font-family:'Fraunces',serif;font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.hero2 .dt{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:7px}
+
+/* ---- Home: three numbers ---- */
+.pulse{display:flex;gap:8px;padding-bottom:20px}
+.pbox{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:var(--ink-2)}
+.pbox .v{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.pbox .k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.09em;color:var(--muted);margin-top:6px;line-height:1.3}
+/* The three numbers already carry their own bottom padding, so the usual
+   28px section gap on top of it opens a hole. */
+.pulse + .sechead{margin-top:4px}
+
+/* ---- Home: the next few things to tick ---- */
+.trow{
+  display:flex;align-items:center;gap:12px;padding:13px 14px;
+  border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:12px;background:var(--ink-2);margin-bottom:8px;
+}
+.trow.over{border-color:rgba(248,113,113,.38);border-left-color:var(--red)}
+.trow.week{border-left-color:var(--amber)}
+.trow .mid{flex:1;min-width:0}
+.trow .lab{font-size:14.5px;line-height:1.35}
+.trow.done .lab{color:var(--muted);text-decoration:line-through}
+.trow .ctx{display:flex;align-items:center;gap:7px;margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)}
+.trow .ctx .logo{width:13px;height:13px;border-radius:3px}
+.trow .d{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;flex-shrink:0;letter-spacing:.03em}
+.seeall{
+  width:100%;margin-top:2px;padding:11px;border:1px solid var(--line);border-radius:12px;
+  text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  letter-spacing:.08em;color:var(--muted);
+}
+.seeall:active{background:var(--ink-3)}
+
+/* ---- Home: runway strip ----
+   Bleeds past the page padding on both sides so the first and last card
+   sit flush with the screen edge when scrolled, which is the cue that
+   there is more to the right. */
+.runway{display:flex;gap:10px;overflow-x:auto;padding:2px var(--pad) 4px;margin:0 calc(-1 * var(--pad));scrollbar-width:none}
+.runway::-webkit-scrollbar{display:none}
+.rwcard{
+  flex:none;width:146px;border:1px solid var(--line);border-radius:14px;
+  background:var(--ink-2);padding:13px;display:flex;flex-direction:column;gap:9px;
+  box-shadow:var(--lift);text-align:left;
+}
+.rwcard.soon{border-color:rgba(248,113,113,.38)}
+.rwcard:active{background:var(--ink-3)}
+.rwtop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rwcard .nm{font-size:13px;font-weight:600;line-height:1.25;letter-spacing:-.01em;min-height:32px}
+.rwcard .d{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.rwcard .pg{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.05em}
+.rwnext{display:flex;align-items:flex-start;gap:5px;padding-top:8px;border-top:1px solid var(--line)}
+.rwnext .car{flex-shrink:0;font-size:10px;line-height:1.35}
+.rwnext .tx{font-size:11px;line-height:1.35}
+.rwnext.clear .car,.rwnext.clear .tx{color:var(--green)}
+
+/* ---- Seven segments: a school's state without opening it ---- */
+.dotbar{display:flex;gap:3px}
+.dotbar span{flex:1;height:4px;border-radius:2px;background:var(--ink-3);display:block}
+.dotbar span.done{background:var(--green)}
+.dotbar span.over{background:var(--red)}
+.dotbar span.soon{background:var(--amber)}
+
+/* ---- Home: the estimate warning, as one row you can act on ---- */
+.verifyrow{
+  width:100%;display:flex;align-items:center;gap:12px;margin-top:24px;
+  padding:13px 14px;border:1px solid var(--amber);border-radius:12px;background:var(--amber-lo);
+}
+.verifyrow .n{font-family:'Fraunces',serif;font-size:24px;font-weight:700;line-height:1;color:var(--amber);flex-shrink:0}
+.verifyrow .t{flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--amber)}
+.verifyrow .s{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px;font-weight:400}
+.verifyrow .go{color:var(--amber);flex-shrink:0;font-size:15px}
+.backlink{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:var(--muted);padding:4px 0 12px}
+
+/* ---- School card: four panes instead of a paragraph ---- */
+.panes{display:flex;gap:2px;padding:9px 12px 0}
+.panebtn{
+  flex:1;padding:10px 4px;border-radius:9px;text-align:center;
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;
+  letter-spacing:.06em;color:var(--muted);
+}
+.panebtn.on{background:var(--accent-lo);color:var(--accent)}
+.panebody{padding:4px 14px 14px}
+/* One-pixel gaps over a line-coloured backing draw the grid rules without
+   a border on every cell. */
+.factgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);margin:8px 0 0}
+.factcell{background:var(--ink-2);padding:11px 12px;min-width:0}
+.factcell .k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;color:var(--muted)}
+.factcell .v{font-size:13.5px;margin-top:5px;line-height:1.35;overflow-wrap:anywhere}
+.factcell .v.amber{color:var(--amber)}
+.factcell .v.green{color:var(--green)}
+.factcell .v.red{color:var(--red)}
+.factcell .v.dim{color:var(--muted)}
+
+/* ---- School card: money pane ---- */
+.moneytop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.moneytop .k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--muted)}
+.moneytop .v{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600}
+.splitbar{height:8px;border-radius:4px;background:var(--ink-3);overflow:hidden;margin-top:10px;display:flex}
+.splitbar .tui{background:var(--accent);height:100%}
+.splitbar .liv{background:var(--blue);height:100%}
+.splitkey{display:flex;gap:14px;margin-top:9px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--muted);flex-wrap:wrap}
+.splitkey span{display:flex;align-items:center;gap:5px}
+.swatch{width:7px;height:7px;border-radius:2px;display:block;flex-shrink:0}
+.gapbox{margin-top:14px;padding:11px 12px;border-radius:10px;border:1px solid var(--line)}
+.gapbox.ok{border-color:var(--green);background:var(--green-lo)}
+.gapbox.short{border-color:var(--red);background:var(--red-lo)}
+.gapbox .k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;color:var(--muted)}
+.gapbox .v{font-size:14px;font-weight:600;margin-top:5px}
+.gapbox.ok .v{color:var(--green)}
+.gapbox.short .v{color:var(--red)}
+
+/* ---- Costs: one affordability chart in place of three tables ---- */
+.fundcard{border:1px solid var(--line);border-radius:14px;background:var(--ink-2);padding:14px;box-shadow:var(--lift)}
+.fundtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.fundtop .k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.11em;color:var(--muted)}
+.fundtop .v{font-family:'Fraunces',serif;font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--accent)}
+.potstack{height:10px;border-radius:5px;background:var(--ink-3);overflow:hidden;margin-top:11px;display:flex}
+.potstack i{height:100%;display:block}
+/* The line every bar is measured against, labelled where it falls. */
+.affmarkrow{position:relative;height:19px;padding:0 13px;margin-bottom:1px}
+.affmarklab{
+  position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap;
+  padding:2px 7px;border-radius:5px;background:var(--paper);color:var(--ink);
+  font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:600;letter-spacing:.05em;
+}
+.affrow{
+  display:block;width:100%;padding:10px 12px;margin-bottom:7px;
+  border:1px solid var(--line);border-radius:11px;background:var(--ink-2);text-align:left;
+}
+.affrow.on{border-color:var(--accent);background:var(--accent-lo)}
+.afftop{display:flex;align-items:center;gap:9px}
+.afftop .nm{flex:1;min-width:0;font-size:13px;font-weight:500;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.afftop .amt{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;flex-shrink:0}
+.afftop .amt.ok{color:var(--green)}
+.afftrack{position:relative;height:6px;border-radius:3px;background:var(--ink-3);overflow:hidden;margin-top:9px}
+.afffill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--accent)}
+.afffill.ok{background:var(--green)}
+.afffill.short{background:var(--red)}
+.affmark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--paper)}
+.affkey{display:flex;align-items:center;gap:14px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--muted)}
+.affkey span{display:flex;align-items:center;gap:5px}
+
+/* ---- Plan: sub-tabs, step rings, action groups ---- */
+.subtabs{display:flex;gap:2px;padding:0 0 14px}
+.subtab{
+  flex:1;padding:11px 4px;border-radius:10px;text-align:center;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+  letter-spacing:.06em;color:var(--muted);
+}
+.subtab.on{background:var(--accent-lo);color:var(--accent)}
+.stepring{position:relative;width:38px;height:38px;flex-shrink:0}
+.stepring svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
+.stepring .track{fill:none;stroke:var(--ink-3)}
+.stepring .arc{fill:none;stroke-linecap:round;transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1)}
+.stepring .num{position:absolute;inset:0;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600}
+/* Urgent cannot hide inside a flat list, so the list is not flat. */
+.ghead{display:flex;align-items:center;gap:8px;padding:0 2px 8px}
+.ghead .dot2{width:8px;height:8px;border-radius:3px;display:block;flex-shrink:0}
+.ghead .t{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.13em}
+.ghead .rule{flex:1;height:1px;background:var(--line);display:block}
+.ghead .c{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--muted)}
+.agroup{border:1px solid var(--line);border-radius:13px;padding:4px 14px 14px;margin-bottom:18px}
+.agroup.now{border-color:rgba(248,113,113,.38);background:var(--ink-2)}
+.agroup .task:first-child{border-top:none}
+.gempty{padding:14px 0;font-size:13px;color:var(--muted)}
+
+/* ---- More: quick actions ---- */
+.qarow{display:flex;gap:8px;margin-bottom:16px}
+.qabtn{flex:1;padding:13px 10px;border:1px solid var(--line);border-radius:12px;background:var(--ink-2);text-align:center}
+.qabtn:active{background:var(--ink-3)}
+.qabtn .ic{font-size:17px;line-height:1}
+.qabtn .lb{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;color:var(--muted);margin-top:7px}
+
 /* ---------- Toast ---------- */
 #toast{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120%);
@@ -673,7 +862,7 @@ th.num{text-align:right}
    kept at 44px or more, and anything that would force sideways scrolling of
    the page itself is stacked instead. */
 @media(max-width:640px){
-  main{padding:18px 14px calc(92px + env(safe-area-inset-bottom))}
+  main{--pad:14px;padding:18px var(--pad) calc(92px + env(safe-area-inset-bottom))}
   .hwrap{padding:10px 14px;gap:9px}
   .days{font-size:44px}
   .hero-top{padding:16px}
@@ -731,9 +920,18 @@ th.num{text-align:right}
   <main>
     <div class="panel on" id="p-dash"></div>
     <div class="panel" id="p-schools"></div>
-    <div class="panel" id="p-steps"></div>
-    <div class="panel" id="p-actions"></div>
+    <div class="panel" id="p-plan"></div>
     <div class="panel" id="p-money"></div>
+    <!-- Ask is static markup, not re-rendered: renderChat() only ever
+         replaces #aimsgs, so the composer keeps focus and what you have
+         half-typed survives a tick landing elsewhere in the app. -->
+    <div class="panel" id="p-ask">
+      <div class="aihead">
+        <div class="aititle">Ask Gemini<span class="aimodel" id="aimodel"></span></div>
+        <button class="aihx" id="aiclear">Clear</button>
+      </div>
+      <div class="aimsgs" id="aimsgs"></div>
+    </div>
     <div class="panel" id="p-settings"></div>
   </main>
 </div>
@@ -751,50 +949,36 @@ th.num{text-align:right}
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V7l8-3 8 3v13"/><path d="M9.5 20v-5h5v5"/><path d="M2.5 20h19"/></svg>
     <span>Schools</span>
   </button>
-  <button class="tab" data-p="steps">
+  <button class="tab" data-p="plan">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12"/><path d="M9 12h12"/><path d="M9 18h12"/><path d="M3.5 6h.01"/><path d="M3.5 12h.01"/><path d="M3.5 18h.01"/></svg>
-    <span>Steps</span>
-  </button>
-  <button class="tab" data-p="actions">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.5 2.5 4.5-5"/></svg>
-    <span>Actions</span>
+    <span>Plan</span>
   </button>
   <button class="tab" data-p="money">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8h15a2 2 0 012 2v7a2 2 0 01-2 2h-13a2 2 0 01-2-2V8z"/><path d="M3.5 8V6.6a1.6 1.6 0 011.2-1.55L15 3"/><circle cx="17" cy="13.5" r="1.1"/></svg>
     <span>Costs</span>
   </button>
+  <button class="tab" data-p="ask">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H12l-5 4v-4H4z"/></svg>
+    <span>Ask</span>
+  </button>
   <button class="tab" data-p="settings">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 17h16"/><circle cx="9.5" cy="7" r="2.2"/><circle cx="15" cy="17" r="2.2"/></svg>
-    <span>Settings</span>
+    <span>More</span>
   </button>
 </nav>
 
-<!-- Ask Gemini. Outside <main> for the same reason as <nav>: position:fixed
-     needs the viewport as its containing block, not a filtered ancestor. -->
-<button class="aifab" id="aifab" aria-label="Ask Gemini" title="Ask Gemini">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.9 5.6L19.5 9.5 13.9 11.4 12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2z"/><path d="M18.5 14.5l.8 2.4 2.4.8-2.4.8-.8 2.4-.8-2.4-2.4-.8 2.4-.8.8-2.4z"/></svg>
-</button>
-
-<div class="aisheet" id="aisheet" role="dialog" aria-modal="true" aria-label="Ask Gemini" hidden>
-  <div class="aibackdrop" id="aibackdrop"></div>
-  <div class="aipanel">
-    <div class="aihead">
-      <div class="aititle">Ask Gemini<span class="aimodel" id="aimodel"></span></div>
-      <button class="aihx" id="aiclear">Clear</button>
-      <button class="aihx" id="aiclose" aria-label="Close">✕</button>
-    </div>
-    <div class="aimsgs" id="aimsgs"></div>
-    <div class="aifoot">
-      <div class="aictx">
-        <input type="checkbox" id="aictx" aria-label="Send my tracker as context">
-        <label for="aictx">Send my schools, deadlines and costs as context</label>
-      </div>
-      <div class="aicomposer">
-        <textarea id="aiin" rows="1" placeholder="Ask about your applications…"
-                  aria-label="Your question"></textarea>
-        <button class="aisend" id="aisend" aria-label="Send">↑</button>
-      </div>
-    </div>
+<!-- The Ask composer. Outside <main> for the same reason as <nav>:
+     position:fixed needs the viewport as its containing block, not a
+     backdrop-filtered ancestor. Hidden unless the Ask tab is showing. -->
+<div class="aifoot" id="aifoot" hidden>
+  <div class="aictx">
+    <input type="checkbox" id="aictx" aria-label="Send my tracker as context">
+    <label for="aictx">Send my schools, deadlines and costs as context</label>
+  </div>
+  <div class="aicomposer">
+    <textarea id="aiin" rows="1" placeholder="Ask about your applications…"
+              aria-label="Your question"></textarea>
+    <button class="aisend" id="aisend" aria-label="Send">↑</button>
   </div>
 </div>
 
@@ -813,7 +997,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.17.0';
+const APP_VERSION = 'v1.18.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -1743,15 +1927,22 @@ function recRow(sid, r) {
 }
 
 /* ---------------- Tabs ---------------- */
-$$('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    $$('.tab').forEach(t => t.classList.remove('on'));
-    $$('.panel').forEach(p => p.classList.remove('on'));
-    tab.classList.add('on');
-    $('#p-' + tab.dataset.p).classList.add('on');
-    window.scrollTo({ top: 0 });
-  });
-});
+/* The Ask composer is fixed to the viewport rather than living inside its
+   panel, so switching tabs has to show and hide it by hand — and the page
+   needs extra bottom padding underneath it while it is up, or the last
+   answer sits behind it. */
+function goTab(name) {
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.p === name));
+  $$('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + name));
+  const asking = name === 'ask';
+  $('#aifoot').hidden = !asking;
+  document.querySelector('main').style.paddingBottom =
+    asking ? 'calc(178px + env(safe-area-inset-bottom))' : '';
+  if (asking) { $('#aictx').checked = !!(data && data.ai && data.ai.useContext); renderChat(); aiSyncModelLine(); }
+  window.scrollTo({ top: 0 });
+}
+window.__go = goTab;
+$$('.tab').forEach(tab => tab.addEventListener('click', () => goTab(tab.dataset.p)));
 
 /* Keep cards open across re-renders */
 const openSet = new Set();
@@ -1776,11 +1967,58 @@ function taskRow(scope, containerId, t) {
     </div>`;
 }
 
-/* ---------------- Dashboard ---------------- */
+/* An SVG progress ring. Dash-offset rather than a conic gradient because
+   this has to animate, and only the offset is cheap to transition. */
+function ringSvg(p, size, stroke, color) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(1, p / 100)));
+  return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle class="track" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${stroke}"/>
+    <circle class="arc" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="${stroke}"
+            stroke="${color}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"/>
+  </svg>`;
+}
+
+/* One segment per task: green done, red overdue, amber inside a fortnight.
+   Seven of these say what a percentage cannot — which tasks, and how bad. */
+function dotBar(tasks) {
+  return `<div class="dotbar">${(tasks || []).slice(0, 8).map(t => {
+    const n = daysTo(t.due);
+    const cls = t.done ? 'done' : (n !== null && n < 0) ? 'over' : (n !== null && n <= 14) ? 'soon' : '';
+    return `<span class="${cls}"></span>`;
+  }).join('')}</div>`;
+}
+
+/* Card titles have room for about two words. "Cambridge Judge EMBA" is
+   three, and the third one is the same on half the list. */
+function shortName(name) {
+  return String(name).replace(/ (EMBA|GEMBA|Global EMBA|Executive MBA)$/, '').trim() || name;
+}
+
+/* ---------------- Home ---------------- */
 /* Display-only state — none of this syncs; it is how you are looking at the
-   data on this device right now, not the data itself. */
-let uiWin = 7;                     // the due-soon window: 7 or 14 days
-window.__setWin = (n) => { uiWin = n; renderDash(); };
+   data on this device right now, not the data itself.
+
+   Home doubles as the confirm-dates screen. It is a sub-view rather than a
+   seventh tab: you arrive from the amber row and leave once it is empty. */
+let homeView = 'home';
+window.__homeView = (v) => { homeView = v; renderDash(); window.scrollTo({ top: 0 }); };
+
+/* Home is a set of jumping-off points, so it needs to be able to land you
+   somewhere with the right thing already open. */
+window.__goPlanActions = () => { planTab = 'actions'; renderPlan(); goTab('plan'); };
+window.__openSchool = (id) => {
+  openSet.add(id);
+  schoolSort = 'deadline';
+  renderSchools();
+  goTab('schools');
+  // Let the panel paint before measuring where the card ended up.
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`#p-schools [data-card="${id}"]`);
+    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+};
 
 function renderDash() {
   const schools = activeSchools();
@@ -1805,15 +2043,11 @@ function renderDash() {
 
   const submitted = schools.filter(isSent).length;
 
-  // Where every application stands right now.
-  const pipe = {};
-  APP_FLOW.forEach(k => { pipe[k] = schools.filter(s => appStatus(s) === k).length; });
-
   // Due in next 14 days, not done
   const soon = [];
   schools.forEach(s => (s.tasks || []).forEach(t => {
     const n = daysTo(t.due);
-    if (!t.done && n !== null && n <= 14) soon.push({ n, label: t.label, ctx: s.name, scope:'schools', cid:s.id, t });
+    if (!t.done && n !== null && n <= 14) soon.push({ n, label: t.label, ctx: shortName(s.name), sid: s.id, scope:'schools', cid:s.id, t });
   }));
   steps.forEach(s => (s.tasks || []).forEach(t => {
     const n = daysTo(t.due);
@@ -1826,148 +2060,112 @@ function renderDash() {
   soon.sort((a, b) => a.n - b.n);
 
   const heroDays = next ? next.n : null;
-  const heroCls  = heroDays === null ? '' : (heroDays <= 14 ? 'crit' : heroDays <= 45 ? 'warn' : '');
 
   // Dates still to check with an admissions office — the burn-down that
-  // turns the banner's warning into something you can actually work through.
+  // turns the old amber paragraph into something you can work through.
   const unconfirmed = schools.filter(s => s.estimated && !isSent(s))
     .sort((a, b) => (daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9));
-  const estCount = schools.filter(s => s.estimated).length;
-  const confCount = schools.length - estCount;
 
-  // The due-soon list respects the 7/14-day chip; the stat box stays a
-  // fixed 14-day gauge so its meaning never shifts under you.
-  const soonWin = soon.filter(x => x.n <= uiWin);
+  const heroColor = heroDays === null ? 'var(--muted)'
+    : heroDays <= 14 ? 'var(--red)' : heroDays <= 45 ? 'var(--amber)' : 'var(--accent)';
+  const heroTxt = heroDays === null ? '' : heroDays <= 14 ? 'color:var(--red)'
+    : heroDays <= 45 ? 'color:var(--amber)' : '';
 
-  // Recommenders not yet submitted, across every active school.
-  const recsPending = [];
-  schools.forEach(s => (s.recs || []).forEach(r => {
-    if (r.status !== 'submitted') recsPending.push({ s, r });
-  }));
-  const recsTotal = schools.reduce((n, s) => n + (s.recs || []).length, 0);
-
-  // Fill proportions for the four stat boxes.
-  const outstanding = allTasks.filter(t => !t.done).length;
-  const sentPct = schools.length ? Math.round(submitted / schools.length * 100) : 0;
-  const soonPct = outstanding ? Math.round(soon.length / outstanding * 100) : 0;
+  /* ---- Confirm dates: the amber warning as a screen you can finish ---- */
+  if (homeView === 'verify') {
+    $('#p-dash').innerHTML = `
+      <button class="backlink" onclick="__homeView('home')">← HOME</button>
+      <div class="sechead"><h2>Confirm dates</h2></div>
+      <p style="font-size:13.5px;color:var(--muted);margin:0 0 16px;line-height:1.55">
+        ${unconfirmed.length} of ${schools.length} deadlines are still estimates and could be
+        wrong by weeks. Ring the school, then tap the tick.
+      </p>
+      ${unconfirmed.length ? unconfirmed.map(s => `
+        <div class="trow" style="border-left-color:var(--amber)">
+          <img class="logo" data-logo="${s.id}" alt="">
+          <div class="mid">
+            <div class="lab">${esc(shortName(s.name))}</div>
+            <div class="ctx">~${fmtDate(s.deadline)}${s.url
+              ? ` · <a class="chase" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">admissions page ↗</a>` : ''}</div>
+          </div>
+          <button class="cb" title="Mark this date as verified"
+                  aria-label="Confirm the deadline for ${esc(s.name)}"
+                  onclick="__confirmDL('${s.id}')"></button>
+        </div>`).join('')
+      : `<div class="empty" style="border-color:var(--green);color:var(--green)">Every date confirmed. Nice.</div>`}`;
+    hydrateLogos($('#p-dash'));
+    return;
+  }
 
   $('#p-dash').innerHTML = `
-    ${estCount ? `<div class="banner">
-      <b>${confCount} of ${schools.length} deadlines confirmed.</b>
-      The other ${estCount} are estimates marked <span class="est" style="color:inherit">like this</span> and
-      could be wrong by weeks. Check each date with the admissions office, then tap
-      <b>mark confirmed</b> in that school's card to tick it off this count.
-    </div>` : ''}
-    <div class="hero">
-      <div class="hero-top">
-        <div>
-          <div class="eyebrow">Next deadline</div>
-          <div class="days ${heroCls}">${next ? (next.n < 0 ? Math.abs(next.n) : next.n) : '—'}</div>
-          <div class="days-label">${next ? (next.n < 0 ? 'days overdue' : next.n === 1 ? 'day remaining' : 'days remaining') + (next.s.estimated ? ' (estimated)' : '') : 'nothing outstanding'}</div>
+    <div class="hero2">
+      <div class="ringwrap">
+        ${ringSvg(next ? Math.max(4, 100 - Math.min(100, (heroDays / 180) * 100)) : 0, 104, 7, heroColor)}
+        <div class="ringmid">
+          <div class="n" style="${heroTxt}">${next ? Math.abs(heroDays) : '—'}</div>
+          <div class="u">DAYS</div>
         </div>
-        ${next ? `
-          <div class="hero-school">
-            <div class="n"><img class="logo logo-sm" data-logo="${next.s.id}" alt="">${esc(next.s.name)}</div>
-            <div class="d ${next.s.estimated ? 'est' : ''}">${fmtDate(next.s.deadline)} · ${esc(next.s.deadlineNote || '')}</div>
-            <div style="margin-top:8px"><span class="pill p-${next.s.priority}">${next.s.priority}</span></div>
-          </div>` : ''}
       </div>
-      <div class="hero-bar">
-        <div class="stat">
-          <div class="statfill ${overall === 100 ? 'green' : ''}" style="width:${overall}%"></div>
-          <div class="k">Overall progress</div><div class="v">${overall}%</div>
-        </div>
-        <div class="stat">
-          <div class="statfill ${overall === 100 ? 'green' : ''}" style="width:${overall}%"></div>
-          <div class="k">Tasks done</div>
-          <div class="v">${doneCount}<span style="color:var(--muted);font-size:13px">/${allTasks.length}</span></div>
-        </div>
-        <div class="stat">
-          <div class="statfill ${sentPct === 100 ? 'green' : ''}" style="width:${sentPct}%"></div>
-          <div class="k">Applications sent</div>
-          <div class="v">${submitted}<span style="color:var(--muted);font-size:13px">/${schools.length}</span></div>
-        </div>
-        <div class="stat">
-          <div class="statfill red" style="width:${soon.length ? soonPct : 0}%"></div>
-          <div class="k">Due in 14 days</div>
-          <div class="v" style="color:${soon.length ? 'var(--red)' : 'var(--paper)'}">${soon.length}</div>
-        </div>
+      <div class="who">
+        <div class="eyebrow">NEXT DEADLINE</div>
+        <div class="nm">${next
+          ? `<img class="logo" data-logo="${next.s.id}" alt="" style="width:26px;height:26px;border-radius:6px;flex-shrink:0">${esc(shortName(next.s.name))}`
+          : 'Nothing outstanding'}</div>
+        ${next ? `<div class="dt">${next.s.estimated ? '~' : ''}${fmtDate(next.s.deadline)} · ${esc(next.s.priority)}</div>` : ''}
       </div>
     </div>
 
-    ${submitted ? `
-      <div class="sechead"><h2>Pipeline</h2><span class="c">${submitted} of ${schools.length} with the schools</span></div>
-      <div class="pipe">
-        ${[['drafting','Drafting',''],['submitted','Submitted',''],['interview','Interview','hot'],
-           ['offer','Offer','good'],['accepted','Accepted','good'],['rejected','Rejected','']]
-          .filter(([k]) => pipe[k])
-          .map(([k, label, cls]) => `
-            <div class="pstage ${cls}">
-              <div class="pv">${pipe[k]}</div>
-              <div class="pk">${label}</div>
-            </div>`).join('')}
-      </div>` : ''}
+    <div class="pulse">
+      <div class="pbox"><div class="v">${overall}%</div><div class="k">DONE</div></div>
+      <div class="pbox"><div class="v">${submitted}/${schools.length}</div><div class="k">SENT</div></div>
+      <div class="pbox"><div class="v" style="${soon.length ? 'color:var(--red)' : ''}">${soon.length}</div><div class="k">DUE 14D</div></div>
+    </div>
+
+    <div class="sechead"><h2>Today</h2><span class="c">${soon.length
+      ? `next ${Math.min(4, soon.length)} of ${soon.length} due` : 'nothing due'}</span></div>
+    ${soon.length ? soon.slice(0, 4).map(x => `
+      <div class="trow ${x.n < 0 ? 'over' : x.n <= 7 ? 'week' : ''}">
+        <button class="cb" aria-label="Mark done: ${esc(x.label)}"
+                onclick="__toggle('${x.scope}','${x.cid}','${x.t.id}')"></button>
+        <div class="mid">
+          <div class="lab">${esc(x.label)}</div>
+          <div class="ctx">${x.sid ? `<img class="logo" data-logo="${x.sid}" alt="">` : ''}${esc(x.ctx)}</div>
+        </div>
+        <div class="d ${dueClass(x.n)}">${dueText(x.n)}</div>
+      </div>`).join('')
+    : `<div class="empty">Clear this fortnight. Good time to get ahead on essays.</div>`}
+    <button class="seeall" onclick="__goPlanActions()">SEE ALL ${allTasks.length - doneCount} OPEN TASKS →</button>
+
+    <div class="sechead"><h2>Runway</h2><span class="c">swipe · ${schools.length} schools</span></div>
+    <div class="runway">
+      ${live.slice(0, 8).map(x => {
+        const nt = (x.s.tasks || []).find(t => !t.done);
+        return `
+        <button class="rwcard ${x.n <= 14 ? 'soon' : ''}" onclick="__openSchool('${x.s.id}')">
+          <div class="rwtop">
+            <img class="logo" data-logo="${x.s.id}" alt="" style="width:24px;height:24px;border-radius:6px">
+            <span class="pill p-${x.s.priority}">${x.s.priority}</span>
+          </div>
+          <div class="nm">${esc(shortName(x.s.name))}</div>
+          <div class="d ${dueClass(x.n)}">${x.s.estimated ? '~' : ''}${dueText(x.n)}</div>
+          ${dotBar(x.s.tasks)}
+          <div class="pg">${pct(x.s.tasks)}% DONE</div>
+          <div class="rwnext ${nt ? '' : 'clear'}">
+            <span class="car">▸</span>
+            <span class="tx">${nt ? esc(nt.label) : 'all tasks ticked'}</span>
+          </div>
+        </button>`;
+      }).join('')}
+    </div>
 
     ${unconfirmed.length ? `
-      <div class="sechead"><h2>Dates to verify</h2><span class="c">${unconfirmed.length} unconfirmed</span></div>
-      <div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
-        ${unconfirmed.map(s => `
-          <div class="vrow">
-            <div class="vname">
-              <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}</div>
-              <div class="recmeta">${fmtDate(s.deadline)} · ${esc(s.deadlineNote || 'no note')}
-                ${s.url ? `<a class="chase" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">admissions page ↗</a>` : ''}
-              </div>
-            </div>
-            <button class="recst" title="Mark this date as verified" onclick="__confirmDL('${s.id}')">confirm</button>
-          </div>`).join('')}
-      </div></div>` : ''}
-
-    <div class="sechead"><h2>${uiWin === 7 ? 'Due this week' : 'Due in the next 14 days'}</h2><span class="c">${soonWin.length} outstanding</span></div>
-    <div class="chips">
-      <button class="chip ${uiWin === 7 ? 'on' : ''}" onclick="__setWin(7)">This week</button>
-      <button class="chip ${uiWin === 14 ? 'on' : ''}" onclick="__setWin(14)">14 days</button>
-    </div>
-    ${soonWin.length ? `<div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
-      ${soonWin.map(x => `
-        <div class="task">
-          <button class="cb" aria-label="Mark done: ${esc(x.label)}"
-                  onclick="__toggle('${x.scope}','${x.cid}','${x.t.id}')"></button>
-          <div class="tlabel">${esc(x.label)}
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(x.ctx)}</div>
-          </div>
-          <div class="tdue ${dueClass(x.n)}">${dueText(x.n)}</div>
-        </div>`).join('')}
-    </div></div>` : `<div class="empty">Nothing due ${uiWin === 7 ? 'this week' : 'in the next fortnight'}. Work ahead on Step 5c.</div>`}
-
-    ${recsTotal ? `
-      <div class="sechead"><h2>Recommenders</h2><span class="c">${recsPending.length ? recsPending.length + ' not yet submitted' : 'all submitted'}</span></div>
-      ${recsPending.length ? `<div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
-        ${recsPending.map(({ s, r }) => recRow(s.id, r).replace('<div class="recmeta">',
-          `<div class="recmeta">${esc(s.name)} · `)).join('')}
-      </div></div>` : `<div class="empty">Every recommender is in. Rare air — enjoy it.</div>`}` : ''}
-
-    <div class="sechead"><h2>Deadline runway</h2><span class="c">by submission date</span></div>
-    <div class="tscroll"><table>
-      <thead><tr><th>School</th><th>Priority</th><th class="num">Deadline</th><th class="num">Countdown</th><th>Progress</th></tr></thead>
-      <tbody>
-        ${schools.slice().sort((a,b) => (daysTo(a.deadline) ?? 1e9) - (daysTo(b.deadline) ?? 1e9)).map(s => {
-          const n = daysTo(s.deadline), p = pct(s.tasks);
-          return `<tr>
-            <td style="font-weight:500">
-              <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}</div>
-            </td>
-            <td><span class="pill p-${s.priority}">${s.priority}</span></td>
-            <td class="num ${s.estimated ? 'est' : ''}" style="color:var(--muted)">${fmtDate(s.deadline)}</td>
-            <td class="num ${isSent(s) ? '' : dueClass(n)} ${s.estimated && !isSent(s) ? 'est' : ''}">${isSent(s) ? APP_LABEL[appStatus(s)] : dueText(n)}</td>
-            <td style="min-width:120px">
-              <div class="pwrap"><div class="pbar ${p === 100 ? 'done' : ''}" style="width:${p}%"></div></div>
-              <div style="font-size:10px;color:var(--muted);margin-top:4px" class="mono">${p}%</div>
-            </td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table></div>`;
+      <button class="verifyrow" onclick="__homeView('verify')">
+        <div class="n">${unconfirmed.length}</div>
+        <div class="t">dates still unconfirmed
+          <div class="s">estimates — ring admissions, then tap to confirm</div>
+        </div>
+        <div class="go">→</div>
+      </button>` : ''}`;
 
   hydrateLogos($('#p-dash'));
 }
@@ -2152,7 +2350,7 @@ $('#logoFile').addEventListener('change', async (e) => {
 });
 
 /* ---------------- Schools ---------------- */
-/* Task filter — display-only state, like uiWin above. With ~150 tasks
+/* Task filter — display-only state, like homeView above. With ~150 tasks
    across 18 cards, scrolling stopped being a search strategy. */
 let taskQ = '';                       // free-text match on task labels
 let taskMode = 'all';                 // all | open | overdue
@@ -2249,6 +2447,11 @@ function rankPill(s) {
   return '';
 }
 
+/* Which pane a school card is showing. Display-only, like openSet — it is
+   where you are looking, not something worth syncing to another device. */
+const paneOf = {};
+window.__pane = (id, k) => { paneOf[id] = k; renderSchools(); };
+
 function renderSchools() {
   const filtering = !!taskQ || taskMode !== 'all';
   const sorter = (SORTS[schoolSort] || SORTS.default).fn;
@@ -2258,13 +2461,19 @@ function renderSchools() {
   // rank that most schools do not carry looks broken unless it says so.
   const rankSort = ['global', 'country', 'europe'].includes(schoolSort);
   const ranked = rankSort ? schools.filter(s => rankOf(s, schoolSort) !== UNRANKED).length : 0;
+  const funds = potsTotal();
 
   const matchCount = filtering
     ? schools.reduce((n, s) => n + (s.tasks || []).filter(taskMatches).length, 0)
     : 0;
 
   $('#p-schools').innerHTML = `
-    <div class="sechead"><h2>${schools.length} school${schools.length === 1 ? '' : 's'}</h2><span class="c">tap a school to open its checklist${hidden ? ` · ${hidden} switched off in Settings` : ''}</span></div>
+    <div class="sechead"><h2>Schools</h2><span class="c">${schools.length} live${hidden ? ` · ${hidden} off` : ''}</span></div>
+    <div class="chips" style="margin-bottom:10px">
+      ${Object.entries(SORTS).map(([k, v]) =>
+        `<button class="chip ${schoolSort === k ? 'on' : ''}" onclick="__setSort('${k}')">${v.label}</button>`).join('')}
+    </div>
+    ${rankSort ? `<div class="setnote" style="padding:0 0 10px">${ranked} of ${schools.length} carry this rank — unranked sort last.</div>` : ''}
     <div class="qbox">
       <input type="search" id="taskQ" placeholder="Search tasks…" value="${esc(taskQ)}" aria-label="Search tasks">
       ${taskQ ? `<button class="qx" onclick="__clearTaskQ()" aria-label="Clear search">✕</button>` : ''}
@@ -2275,14 +2484,6 @@ function renderSchools() {
       <button class="chip ${taskMode === 'overdue' ? 'on' : ''}" onclick="__setTaskMode('overdue')">Overdue</button>
       ${filtering ? `<span class="chip" style="border-style:dashed">${matchCount} match${matchCount === 1 ? '' : 'es'}</span>` : ''}
     </div>
-    <div class="sortrow">
-      <label for="schoolSort">Sort by</label>
-      <select id="schoolSort" class="sortsel" onchange="__setSort(this.value)">
-        ${Object.entries(SORTS).map(([k, v]) =>
-          `<option value="${k}" ${schoolSort === k ? 'selected' : ''}>${v.label}</option>`).join('')}
-      </select>
-      ${rankSort ? `<span class="c">${ranked} of ${schools.length} ranked · unranked last</span>` : ''}
-    </div>
     <div class="grid">
       ${schools.map(s => {
         const n = daysTo(s.deadline), p = pct(s.tasks);
@@ -2290,117 +2491,176 @@ function renderSchools() {
         if (filtering && !tasks.length) return '';
         const isOpen = filtering || openSet.has(s.id);
         const rs = sortedRounds(s);
+        const sent = isSent(s);
+        const st = appStatus(s);
+        const r = s.rank || {};
+        // A filtered view is a task view, so it opens on tasks whatever
+        // pane you last left this card on.
+        const pane = filtering ? 'tasks' : (paneOf[s.id] || 'tasks');
+        const rankBit = r.global != null ? `QS #${r.global}`
+          : r.joint != null ? `QS #${r.joint} joint` : 'unranked';
+        const need = (s.totalUsd || 0) + (s.appFeeUsd || 0);
+        const gap = funds - need;
+        const tw = Math.round((s.tuitionUsd || 0) / Math.max(1, s.totalUsd || 1) * 100);
+        const schN = s.schDeadline ? daysTo(s.schDeadline) : null;
+
+        const paneBtn = (k, label) =>
+          `<button class="panebtn ${pane === k ? 'on' : ''}" onclick="__pane('${s.id}','${k}')">${label}</button>`;
+        const fact = (k, v, cls = '') => `<div class="factcell"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`;
+
         return `
-        <div class="card ${s.priority === 'URGENT' ? 'urgent' : ''} ${isOpen ? 'open' : ''}">
+        <div class="card ${s.priority === 'URGENT' ? 'urgent' : ''} ${isOpen ? 'open' : ''}" data-card="${s.id}">
           <div class="chead" onclick="__card('${s.id}',this)">
-            <div class="caret">▶</div>
             <img class="logo" data-logo="${s.id}" alt="">
-            <div style="min-width:0">
+            <div style="min-width:0;flex:1">
               <div class="cname">${esc(s.name)}</div>
               <div class="cmeta">
                 <span class="pill p-${s.priority}">${s.priority}</span>
-                ${appStatus(s) !== 'none' ? `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>` : ''}
-                <span class="pill w-${s.waiver}">${s.waiver} waiver</span>
-                ${rankPill(s)}
-                <span>${esc(s.geo)}</span>
-                <span class="mono">${usd(s.totalUsd)}</span>
+                <span class="mono">${rankBit} · ${esc(s.geo)}${st !== 'none' ? ' · ' + APP_LABEL[st] : ''}</span>
               </div>
+              <div style="margin-top:9px">${dotBar(s.tasks)}</div>
             </div>
             <div class="cright">
-              <div class="cdays ${isSent(s) ? 'ok' : dueClass(n)} ${s.estimated && !isSent(s) ? 'est' : ''}">${isSent(s) ? APP_LABEL[appStatus(s)] : dueText(n)}</div>
-              <div class="cprog">${p}% · ${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length}</div>
+              <div class="cdays ${sent ? 'ok' : dueClass(n)}">${sent ? '✓' : (s.estimated ? '~' : '') + (n === null ? '—' : Math.abs(n))}</div>
+              <div class="cprog">${sent ? APP_LABEL[st].toUpperCase() : n === null ? '' : n < 0 ? 'DAYS OVER' : 'DAYS'}</div>
             </div>
           </div>
-          <div class="cbody">
-            <div class="cinfo">
-              <b>Deadline:</b> ${fmtDate(s.deadline)} ${s.estimated
-                ? `<span class="est">(estimated)</span> <button class="editlink" onclick="__confirmDL('${s.id}')">mark confirmed</button>`
-                : '<span style="color:var(--green)">(confirmed)</span>'} — ${esc(s.deadlineNote || '')}
-              <button class="editlink" onclick="__editDL('${s.id}')">${editingDL.has(s.id) ? 'cancel' : 'edit'}</button><br>
-              ${s.rolledFrom ? `<span style="color:var(--amber)">Earlier round missed (was ${fmtDate(s.rolledFrom)}) — now tracking the next one.</span><br>` : ''}
-              ${rs.length && !editingDL.has(s.id) ? `<b>Rounds:</b> ${rs.map(r => {
-                const rn = daysTo(r.date);
-                const off = !winOn(s, r.win);
-                const stat = off ? ' (window off)' : rn < 0 ? ' (passed)' : (r.date === s.deadline ? ' ← tracking' : '');
-                const txt = `${esc(r.label || '')}${r.win ? ` <span class="c">[${esc(r.win)}]</span>` : ''} ${fmtDate(r.date)}${stat}`;
-                return off ? `<s style="opacity:.55">${txt}</s>` : txt;
-              }).join(' · ')}<br>` : ''}
-              ${editingDL.has(s.id) ? `
-                <div class="dledit">
-                  <input type="date" id="dl-date-${s.id}" value="${s.deadline || ''}">
-                  <label><input type="checkbox" id="dl-conf-${s.id}" ${s.estimated ? '' : 'checked'}> This date is confirmed</label>
-                  <label>App fee $ <input type="number" id="dl-fee-${s.id}" min="0" step="any" value="${s.appFeeUsd ?? ''}" placeholder="—" aria-label="Application fee in USD"></label>
-                  <label>Duration <input type="text" id="dl-dur-${s.id}" value="${esc(s.duration || '')}" placeholder="e.g. 20 months" aria-label="Programme duration"></label>
-                  <label>Scholarship deadline <input type="date" id="dl-sch-${s.id}" value="${s.schDeadline || ''}" aria-label="Scholarship deadline"></label>
-                  <label style="flex-basis:100%">Admissions page
-                    <input type="url" class="urlin" id="dl-url-${s.id}" value="${esc(s.url || '')}" placeholder="https://…" aria-label="Admissions page URL">
-                  </label>
-                  <div class="rankedit" style="flex-basis:100%">
-                    <div class="recmeta" style="margin:2px 0 4px">QS Executive MBA 2026 ranks — leave blank where the programme is not ranked. Joint programmes (TRIUM, EMBA-Global) sit in a separate QS table, so use the joint field for those.</div>
-                    <div class="rline">
-                      <label>Country <input type="text" class="ctryin" id="dl-ctry-${s.id}" value="${esc(s.country || '')}" placeholder="e.g. UK" aria-label="Country"></label>
-                      <label>Global <input type="number" min="1" step="1" id="dl-rg-${s.id}" value="${s.rank?.global ?? ''}" placeholder="—" aria-label="QS global rank"></label>
-                      <label>In country <input type="number" min="1" step="1" id="dl-rc-${s.id}" value="${s.rank?.country ?? ''}" placeholder="—" aria-label="QS rank within country"></label>
-                      <label>Europe <input type="number" min="1" step="1" id="dl-re-${s.id}" value="${s.rank?.europe ?? ''}" placeholder="—" aria-label="QS rank within Europe"></label>
-                      <label>Joint <input type="number" min="1" step="1" id="dl-rj-${s.id}" value="${s.rank?.joint ?? ''}" placeholder="—" aria-label="QS joint-programme rank"></label>
-                    </div>
-                  </div>
-                  <div id="intakes-${s.id}" style="flex-basis:100%">
-                    <div class="recmeta" style="margin:2px 0 4px">Start windows: untick one to switch it off. Each window can carry its own application deadline — the tracker follows the earliest upcoming date across windows and rounds.</div>
-                    ${(s.intakes || []).map((iw, i) => `
-                      <div class="rline iline">
-                        <input type="checkbox" class="ion" ${iw.on ? 'checked' : ''} aria-label="Start window active">
-                        <input type="text" class="ilab" value="${esc(iw.label || '')}" placeholder="e.g. Sep 2027" aria-label="Start window">
-                        <input type="date" class="idate" value="${iw.deadline || ''}" aria-label="Deadline for this window">
-                        <button type="button" class="rx" onclick="__delIntake('${s.id}',${i})" aria-label="Remove start window">✕</button>
-                      </div>`).join('')}
-                  </div>
-                  <button class="editlink" onclick="__addIntake('${s.id}')">+ add start window</button>
-                  <div id="rounds-${s.id}" style="flex-basis:100%">
-                    ${rs.length ? '' : `<div class="recmeta" style="margin:2px 0 4px">Rounds: add each round's date and the tracker follows the next open one automatically.</div>`}
-                    ${(s.rounds || []).map((r, i) => `
-                      <div class="rline">
-                        <input type="text" class="rlab" value="${esc(r.label || '')}" placeholder="R${i + 1}" aria-label="Round name">
-                        <input type="date" class="rdate" value="${r.date || ''}" aria-label="Round date">
-                        ${(s.intakes || []).length > 1 ? `
-                          <select class="rwin" aria-label="Start window this round feeds">
-                            <option value="">all windows</option>
-                            ${(s.intakes || []).filter(iw => iw.label).map(iw =>
-                              `<option value="${esc(iw.label)}" ${r.win === iw.label ? 'selected' : ''}>${esc(iw.label)}</option>`).join('')}
-                          </select>` : ''}
-                        <button type="button" class="rx" onclick="__delRound('${s.id}',${i})" aria-label="Remove round">✕</button>
-                      </div>`).join('')}
-                  </div>
-                  <button class="editlink" onclick="__addRound('${s.id}')">+ add round</button>
-                  <button class="ghost addtask" onclick="__saveDL('${s.id}')">Save</button>
+
+          <div class="cbody" style="padding:0">
+            <div class="panes">
+              ${paneBtn('tasks', 'TASKS')}${paneBtn('facts', 'FACTS')}${paneBtn('money', 'MONEY')}${paneBtn('notes', 'NOTES')}
+            </div>
+
+            ${pane === 'tasks' ? `
+              <div class="panebody">
+                ${s.flag ? `<div class="flag">⚑ ${esc(s.flag)}</div>` : ''}
+                ${tasks.map(t => taskRow('schools', s.id, t)).join('')}
+                ${filtering ? '' : `<button class="ghost addtask" onclick="__addTask('schools','${s.id}')">+ Add task</button>`}
+              </div>` : ''}
+
+            ${pane === 'facts' ? `
+              <div class="panebody" style="padding-left:0;padding-right:0">
+                <div class="factgrid">
+                  ${fact('DEADLINE', `${fmtDate(s.deadline)}${s.estimated ? ' (est)' : ''}`, s.estimated ? 'amber' : '')}
+                  ${fact('PROGRESS', `${p}% · ${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length}`)}
+                  ${fact('STARTS', startHtml(s))}
+                  ${fact('LENGTH', esc(s.duration || '—'))}
+                  ${fact('QS RANKS', rankHtml(s))}
+                  ${fact('TEST WAIVER', esc(s.waiver), s.waiver === 'Green' ? 'green' : s.waiver === 'Amber' ? 'amber' : 'red')}
+                  ${fact('WHY THIS DATE', esc(s.deadlineNote || '—'), 'dim')}
+                  ${fact('WATCH', s.flag ? esc(s.flag) : 'nothing flagged', s.flag ? 'amber' : 'dim')}
                 </div>
-              ` : ''}
-              <b>QS EMBA 2026:</b> ${rankHtml(s)}<br>
-              <b>Starts:</b> ${startHtml(s)} · ${esc(s.duration || '—')}<br>
-              <b>Tuition:</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')} · ${usd(s.tuitionUsd)} · <b>All-in:</b> ${usd(s.totalUsd)}${s.appFeeUsd ? ` · <b>App fee:</b> ${usd(s.appFeeUsd)}` : ''}<br>
-              <b>Waiver:</b> ${esc(s.waiverNote)}<br>
-              <b>Scholarship:</b> ${esc(s.scholarship)}<br>
-              <b>Apply for funding:</b> ${esc(s.scholarshipTiming)}${s.schDeadline
-                ? ` — <b>by ${fmtDate(s.schDeadline)}</b> <span class="${dueClass(daysTo(s.schDeadline))}">${dueText(daysTo(s.schDeadline))}</span>` : ''}
-              ${s.url ? `<br><a class="chase" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">admissions page ↗</a>` : ''}
-            </div>
-            <div class="statusrow">
-              <label for="st-${s.id}">Application status</label>
-              <select id="st-${s.id}" class="stsel ap-${appStatus(s)}" onchange="__setStatus('${s.id}',this.value)">
-                ${APP_FLOW.map(v => `<option value="${v}" ${appStatus(s) === v ? 'selected' : ''}>${APP_LABEL[v]}</option>`).join('')}
-              </select>
-            </div>
-            ${s.flag ? `<div class="flag">⚑ ${esc(s.flag)}</div>` : ''}
-            ${tasks.map(t => taskRow('schools', s.id, t)).join('')}
-            ${filtering ? '' : `<button class="ghost addtask" onclick="__addTask('schools','${s.id}')">+ Add task</button>
-            <label class="noteslabel">Essays and documents</label>
-            ${(s.docs || []).map(dc => docRow(s.id, dc)).join('')}
-            <button class="ghost addtask" onclick="__addDoc('${s.id}')">+ Add document</button>
-            <label class="noteslabel">Recommenders</label>
-            ${(s.recs || []).map(r => recRow(s.id, r)).join('')}
-            <button class="ghost addtask" onclick="__addRec('${s.id}')">+ Add recommender</button>
-            <label class="noteslabel" for="notes-${s.id}">Notes</label>
-            <textarea class="notes" id="notes-${s.id}" data-id="${s.id}" placeholder="Contacts, interview notes, anything worth remembering…">${esc(s.notes || '')}</textarea>`}
+                <div class="panebody" style="padding-bottom:0">
+                  ${s.rolledFrom ? `<div class="cinfo" style="color:var(--amber)">Earlier round missed (was ${fmtDate(s.rolledFrom)}) — now tracking the next one.</div>` : ''}
+                  ${rs.length && !editingDL.has(s.id) ? `<div class="cinfo"><b>Rounds:</b> ${rs.map(rr => {
+                    const rn = daysTo(rr.date);
+                    const off = !winOn(s, rr.win);
+                    const stat = off ? ' (window off)' : rn < 0 ? ' (passed)' : (rr.date === s.deadline ? ' ← tracking' : '');
+                    const txt = `${esc(rr.label || '')}${rr.win ? ` <span class="c">[${esc(rr.win)}]</span>` : ''} ${fmtDate(rr.date)}${stat}`;
+                    return off ? `<s style="opacity:.55">${txt}</s>` : txt;
+                  }).join(' · ')}</div>` : ''}
+                  <div class="cinfo" style="margin-top:6px">
+                    ${s.estimated
+                      ? `<button class="editlink" onclick="__confirmDL('${s.id}')">mark confirmed</button> · `
+                      : ''}
+                    <button class="editlink" onclick="__editDL('${s.id}')">${editingDL.has(s.id) ? 'cancel' : 'edit dates, rounds and ranks'}</button>
+                    ${s.url ? ` · <a class="chase" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">admissions page ↗</a>` : ''}
+                  </div>
+                  ${editingDL.has(s.id) ? `
+                    <div class="dledit">
+                      <input type="date" id="dl-date-${s.id}" value="${s.deadline || ''}">
+                      <label><input type="checkbox" id="dl-conf-${s.id}" ${s.estimated ? '' : 'checked'}> This date is confirmed</label>
+                      <label>App fee $ <input type="number" id="dl-fee-${s.id}" min="0" step="any" value="${s.appFeeUsd ?? ''}" placeholder="—" aria-label="Application fee in USD"></label>
+                      <label>Duration <input type="text" id="dl-dur-${s.id}" value="${esc(s.duration || '')}" placeholder="e.g. 20 months" aria-label="Programme duration"></label>
+                      <label>Scholarship deadline <input type="date" id="dl-sch-${s.id}" value="${s.schDeadline || ''}" aria-label="Scholarship deadline"></label>
+                      <label style="flex-basis:100%">Admissions page
+                        <input type="url" class="urlin" id="dl-url-${s.id}" value="${esc(s.url || '')}" placeholder="https://…" aria-label="Admissions page URL">
+                      </label>
+                      <div class="rankedit" style="flex-basis:100%">
+                        <div class="recmeta" style="margin:2px 0 4px">QS Executive MBA 2026 ranks — leave blank where the programme is not ranked. Joint programmes (TRIUM, EMBA-Global) sit in a separate QS table, so use the joint field for those.</div>
+                        <div class="rline">
+                          <label>Country <input type="text" class="ctryin" id="dl-ctry-${s.id}" value="${esc(s.country || '')}" placeholder="e.g. UK" aria-label="Country"></label>
+                          <label>Global <input type="number" min="1" step="1" id="dl-rg-${s.id}" value="${s.rank?.global ?? ''}" placeholder="—" aria-label="QS global rank"></label>
+                          <label>In country <input type="number" min="1" step="1" id="dl-rc-${s.id}" value="${s.rank?.country ?? ''}" placeholder="—" aria-label="QS rank within country"></label>
+                          <label>Europe <input type="number" min="1" step="1" id="dl-re-${s.id}" value="${s.rank?.europe ?? ''}" placeholder="—" aria-label="QS rank within Europe"></label>
+                          <label>Joint <input type="number" min="1" step="1" id="dl-rj-${s.id}" value="${s.rank?.joint ?? ''}" placeholder="—" aria-label="QS joint-programme rank"></label>
+                        </div>
+                      </div>
+                      <div id="intakes-${s.id}" style="flex-basis:100%">
+                        <div class="recmeta" style="margin:2px 0 4px">Start windows: untick one to switch it off. Each window can carry its own application deadline — the tracker follows the earliest upcoming date across windows and rounds.</div>
+                        ${(s.intakes || []).map((iw, i) => `
+                          <div class="rline iline">
+                            <input type="checkbox" class="ion" ${iw.on ? 'checked' : ''} aria-label="Start window active">
+                            <input type="text" class="ilab" value="${esc(iw.label || '')}" placeholder="e.g. Sep 2027" aria-label="Start window">
+                            <input type="date" class="idate" value="${iw.deadline || ''}" aria-label="Deadline for this window">
+                            <button type="button" class="rx" onclick="__delIntake('${s.id}',${i})" aria-label="Remove start window">✕</button>
+                          </div>`).join('')}
+                      </div>
+                      <button class="editlink" onclick="__addIntake('${s.id}')">+ add start window</button>
+                      <div id="rounds-${s.id}" style="flex-basis:100%">
+                        ${rs.length ? '' : `<div class="recmeta" style="margin:2px 0 4px">Rounds: add each round's date and the tracker follows the next open one automatically.</div>`}
+                        ${(s.rounds || []).map((rr, i) => `
+                          <div class="rline">
+                            <input type="text" class="rlab" value="${esc(rr.label || '')}" placeholder="R${i + 1}" aria-label="Round name">
+                            <input type="date" class="rdate" value="${rr.date || ''}" aria-label="Round date">
+                            ${(s.intakes || []).length > 1 ? `
+                              <select class="rwin" aria-label="Start window this round feeds">
+                                <option value="">all windows</option>
+                                ${(s.intakes || []).filter(iw => iw.label).map(iw =>
+                                  `<option value="${esc(iw.label)}" ${rr.win === iw.label ? 'selected' : ''}>${esc(iw.label)}</option>`).join('')}
+                              </select>` : ''}
+                            <button type="button" class="rx" onclick="__delRound('${s.id}',${i})" aria-label="Remove round">✕</button>
+                          </div>`).join('')}
+                      </div>
+                      <button class="editlink" onclick="__addRound('${s.id}')">+ add round</button>
+                      <button class="ghost addtask" onclick="__saveDL('${s.id}')">Save</button>
+                    </div>` : ''}
+                </div>
+              </div>` : ''}
+
+            ${pane === 'money' ? `
+              <div class="panebody" style="padding-top:12px">
+                <div class="moneytop"><div class="k">ALL-IN COST</div><div class="v">${usd(s.totalUsd)}</div></div>
+                <div class="splitbar">
+                  <div class="tui" style="width:${tw}%"></div><div class="liv" style="width:${100 - tw}%"></div>
+                </div>
+                <div class="splitkey">
+                  <span><i class="swatch" style="background:var(--accent)"></i>tuition ${usd(s.tuitionUsd)}</span>
+                  <span><i class="swatch" style="background:var(--blue)"></i>living + fees</span>
+                </div>
+                <div class="cinfo" style="margin-top:10px">
+                  <b>Tuition (local):</b> ${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}${s.appFeeUsd ? ` · <b>App fee:</b> ${usd(s.appFeeUsd)}` : ''}
+                </div>
+                <div class="gapbox ${!funds ? '' : gap >= 0 ? 'ok' : 'short'}">
+                  <div class="k">AGAINST YOUR FUNDING</div>
+                  <div class="v">${!funds ? 'set your funding on the Costs tab'
+                    : gap >= 0 ? `covered, ${usd(gap)} spare` : `short by ${usd(Math.abs(gap))}`}</div>
+                </div>
+                <div class="cinfo" style="margin-top:12px">
+                  <b>Scholarship:</b> ${esc(s.scholarship)}<br>
+                  <b>Apply for funding:</b> ${esc(s.scholarshipTiming)}${s.schDeadline
+                    ? ` — <b>by ${fmtDate(s.schDeadline)}</b> <span class="${dueClass(schN)}">${dueText(schN)}</span>` : ''}<br>
+                  <b>Waiver:</b> ${esc(s.waiverNote)}
+                </div>
+              </div>` : ''}
+
+            ${pane === 'notes' ? `
+              <div class="panebody" style="padding-top:12px">
+                <div class="statusrow">
+                  <label for="st-${s.id}">Application status</label>
+                  <select id="st-${s.id}" class="stsel ap-${st}" onchange="__setStatus('${s.id}',this.value)">
+                    ${APP_FLOW.map(v => `<option value="${v}" ${st === v ? 'selected' : ''}>${APP_LABEL[v]}</option>`).join('')}
+                  </select>
+                </div>
+                <label class="noteslabel" for="notes-${s.id}">Notes</label>
+                <textarea class="notes" id="notes-${s.id}" data-id="${s.id}" placeholder="Contacts, interview notes, anything worth remembering…">${esc(s.notes || '')}</textarea>
+                <label class="noteslabel">Essays and documents</label>
+                ${(s.docs || []).map(dc => docRow(s.id, dc)).join('')}
+                <button class="ghost addtask" onclick="__addDoc('${s.id}')">+ Add document</button>
+                <label class="noteslabel">Recommenders</label>
+                ${(s.recs || []).map(rr => recRow(s.id, rr)).join('')}
+                <button class="ghost addtask" onclick="__addRec('${s.id}')">+ Add recommender</button>
+              </div>` : ''}
           </div>
         </div>`;
       }).join('')}
@@ -2410,48 +2670,81 @@ function renderSchools() {
   hydrateLogos($('#p-schools'));
 }
 
-/* ---------------- Steps ---------------- */
-function renderSteps() {
-  const steps = data.steps || [];
-  $('#p-steps').innerHTML = `
-    <div class="sechead"><h2>Project steps</h2><span class="c">${steps.filter(s => pct(s.tasks) === 100).length}/${steps.length} complete</span></div>
-    <div class="grid">
-      ${steps.map(s => {
-        const p = pct(s.tasks);
-        return `
-        <div class="card ${openSet.has(s.id) ? 'open' : ''}">
-          <div class="chead" onclick="__card('${s.id}',this)">
-            <div class="caret">▶</div>
-            <div style="min-width:0">
-              <div class="cname"><span class="mono" style="color:var(--accent);margin-right:8px">${s.num}</span>${esc(s.name)}</div>
-              <div class="cmeta"><span>${esc(s.detail)}</span></div>
-            </div>
-            <div class="cright">
-              <div class="cdays ${p === 100 ? 'ok' : ''}" style="${p === 100 ? 'color:var(--green)' : ''}">${p}%</div>
-              <div class="cprog">${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length}</div>
-            </div>
-          </div>
-          <div class="cbody">
-            ${(s.tasks || []).map(t => taskRow('steps', s.id, t)).join('')}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-}
+/* ---------------- Plan ----------------
+   Project steps and My actions were two tabs doing one job: what is left to
+   do that is not a school. They share a panel now, which is what freed the
+   sixth slot for Ask.
 
-/* ---------------- Actions ---------------- */
-function renderActions() {
-  const acts = (data.actions || []).slice().sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;
-    return (daysTo(a.due) ?? 1e9) - (daysTo(b.due) ?? 1e9);
-  });
-  const open = acts.filter(a => !a.done).length;
-  $('#p-actions').innerHTML = `
-    <div class="sechead"><h2>My actions</h2><span class="c">${open} outstanding</span></div>
-    <div class="card"><div class="cbody" style="display:block;border-top:none;padding:6px 16px 12px">
-      ${acts.map(t => taskRow('actions', '', t)).join('')}
-      <button class="ghost addtask" onclick="__addTask('actions','')">+ Add task</button>
-    </div></div>`;
+   The actions half is grouped rather than flat. A single sorted list buries
+   the two things due this week under fourteen that are not, and the whole
+   point of the list is the two. */
+let planTab = 'steps';
+window.__planTab = (k) => { planTab = k; renderPlan(); window.scrollTo({ top: 0 }); };
+
+function renderPlan() {
+  const steps = data.steps || [];
+  const acts = data.actions || [];
+  const stepsDone = steps.filter(s => pct(s.tasks) === 100).length;
+
+  const byDue = (a, b) => (daysTo(a.due) ?? 1e9) - (daysTo(b.due) ?? 1e9);
+  const isNow = (t) => { const n = daysTo(t.due); return n !== null && n <= 14; };
+  const now   = acts.filter(t => !t.done && isNow(t)).sort(byDue);
+  const later = acts.filter(t => !t.done && !isNow(t)).sort(byDue);
+  const done  = acts.filter(t => t.done);
+
+  const group = (title, items, cls, dot, fg, emptyText, tail = '') => `
+    <div class="ghead">
+      <span class="dot2" style="background:${dot}"></span>
+      <span class="t" style="color:${fg}">${title}</span>
+      <span class="rule"></span>
+      <span class="c">${items.length}</span>
+    </div>
+    <div class="agroup ${cls}">
+      ${items.length ? items.map(t => taskRow('actions', '', t)).join('')
+        : `<div class="gempty">${emptyText}</div>`}
+      ${tail}
+    </div>`;
+
+  $('#p-plan').innerHTML = `
+    <div class="sechead"><h2>Plan</h2><span class="c">${planTab === 'steps'
+      ? `${stepsDone}/${steps.length} steps done`
+      : `${now.length + later.length} open`}</span></div>
+    <div class="subtabs">
+      <button class="subtab ${planTab === 'steps' ? 'on' : ''}" onclick="__planTab('steps')">PROJECT STEPS</button>
+      <button class="subtab ${planTab === 'actions' ? 'on' : ''}" onclick="__planTab('actions')">MY ACTIONS</button>
+    </div>
+
+    ${planTab === 'steps' ? `
+      <div class="grid">
+        ${steps.map(s => {
+          const p = pct(s.tasks);
+          return `
+          <div class="card ${openSet.has(s.id) ? 'open' : ''}">
+            <div class="chead" onclick="__card('${s.id}',this)">
+              <div class="stepring">
+                ${ringSvg(p, 38, 3.5, p === 100 ? 'var(--green)' : 'var(--accent)')}
+                <div class="num" style="${p === 100 ? 'color:var(--green)' : ''}">${s.num}</div>
+              </div>
+              <div style="min-width:0">
+                <div class="cname">${esc(s.name)}</div>
+                <div class="cmeta"><span class="mono">${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length} tasks</span></div>
+              </div>
+              <div class="cright">
+                <div class="cdays ${p === 100 ? 'ok' : ''}" style="${p === 100 ? 'color:var(--green)' : ''}">${p}%</div>
+              </div>
+            </div>
+            <div class="cbody">
+              <div class="cinfo">${esc(s.detail)}</div>
+              ${(s.tasks || []).map(t => taskRow('steps', s.id, t)).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`
+    : `
+      ${group('DO NOW', now, 'now', 'var(--red)', 'var(--red)', 'Nothing urgent — good.')}
+      ${group('LATER', later, '', 'var(--muted)', 'var(--muted)', 'Nothing queued.',
+        `<button class="ghost addtask" onclick="__addTask('actions','')">+ Add task</button>`)}
+      ${group('DONE', done, '', 'var(--green)', 'var(--green)', 'Nothing ticked yet.')}`}`;
 }
 
 /* ---------------- Money ---------------- */
@@ -2463,6 +2756,7 @@ window.__cmp = (id) => {
   else cmpSet.add(id);
   renderMoney();
 };
+window.__cmpClear = () => { cmpSet.clear(); renderMoney(); };
 
 function potsTotal() {
   const p = (data && data.pots) || {};
@@ -2481,6 +2775,11 @@ document.addEventListener('change', (e) => {
   renderMoney();
 });
 
+const POT_COLORS = {
+  savings: 'var(--accent)', employer: 'var(--blue)',
+  scholarship: 'var(--green)', loan: 'var(--amber)',
+};
+
 function renderMoney() {
   const ranked = activeSchools().slice().sort((a, b) => a.totalUsd - b.totalUsd);
   const funding = data.funding || [];
@@ -2491,96 +2790,113 @@ function renderMoney() {
   const cmp = ranked.filter(s => cmpSet.has(s.id));
 
   const POTS = [
-    ['savings', 'Savings'], ['employer', 'Employer'],
-    ['scholarship', 'Scholarship (expected)'], ['loan', 'Loan (approved)'],
+    ['savings', 'SAVINGS'], ['employer', 'EMPLOYER'],
+    ['scholarship', 'SCHOLARSHIP'], ['loan', 'LOAN'],
   ];
 
-  $('#p-money').innerHTML = `
-    <div class="sechead"><h2>Funding plan</h2><span class="c">${funds ? 'total ' + usd(funds) : 'what you can put in'}</span></div>
-    <div class="pots">
-      ${POTS.map(([k, label]) => `
-        <div class="pot">
-          <label for="pot-${k}">${label}</label>
-          <input type="number" class="potIn" id="pot-${k}" data-pot="${k}" min="0" step="any"
-                 inputmode="decimal" placeholder="$0" value="${pots[k] ?? ''}" aria-label="${label} in USD">
-        </div>`).join('')}
-    </div>
-    ${funds ? '' : `<div class="setnote" style="padding:0 0 6px">Fill in what you could raise — savings, employer sponsorship, expected scholarship, approved loan — and every school below gets a Gap column showing how far that stretches.</div>`}
+  // Every bar is drawn against the same scale, and the scale has to include
+  // the funding line or a well-funded plan pushes the marker off the end.
+  const maxCost = Math.max(1, ...ranked.map(s => s.totalUsd || 0), funds);
+  const affordable = funds ? ranked.filter(s => (s.totalUsd || 0) <= funds).length : 0;
 
-    <div class="sechead"><h2>Total cost ranking</h2><span class="c">tuition + fees + living, USD</span></div>
-    <div class="tscroll"><table>
-      <thead><tr><th class="num">#</th><th>School</th><th class="num">Tuition (local)</th><th class="num">Tuition (USD)</th><th class="num">All-in (USD)</th>${funds ? '<th class="num">Gap</th>' : ''}</tr></thead>
-      <tbody>
-        ${ranked.map((s, i) => {
-          const need = s.totalUsd + (s.appFeeUsd || 0);
-          const gap = funds - need;
-          return `<tr>
-          <td class="num" style="color:var(--muted)">${i + 1}</td>
-          <td style="font-weight:500">
-            <div class="tname"><img class="logo logo-sm" data-logo="${s.id}" alt="">${esc(s.name)}${s.flag ? ' <span style="color:var(--amber)">⚑</span>' : ''}</div>
-          </td>
-          <td class="num" style="color:var(--muted)">${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}</td>
-          <td class="num">${usd(s.tuitionUsd)}</td>
-          <td class="num" style="font-weight:600">${usd(s.totalUsd)}</td>
-          ${funds ? `<td class="num ${gap >= 0 ? 'gap-ok' : 'gap-short'}">${gap >= 0 ? 'covered' : '−' + usd(Math.abs(gap))}</td>` : ''}
-        </tr>`;
-        }).join('')}
-      </tbody>
-    </table></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6">
+  $('#p-money').innerHTML = `
+    <div class="sechead"><h2>Costs</h2><span class="c">${funds ? usd(funds) + ' available' : 'set your funding'}</span></div>
+
+    <div class="fundcard">
+      <div class="fundtop">
+        <div class="k">WHAT YOU CAN RAISE</div>
+        <div class="v">${funds ? usd(funds) : '$0'}</div>
+      </div>
+      ${funds ? `<div class="potstack">
+        ${POTS.filter(([k]) => Number(pots[k]) > 0).map(([k]) =>
+          `<i style="width:${Math.round(Number(pots[k]) / funds * 100)}%;background:${POT_COLORS[k]}"></i>`).join('')}
+      </div>` : ''}
+      <div class="pots" style="margin-top:12px">
+        ${POTS.map(([k, label]) => `
+          <div class="pot">
+            <label for="pot-${k}"><i class="swatch" style="background:${POT_COLORS[k]};display:inline-block;margin-right:5px;vertical-align:middle"></i>${label}</label>
+            <input type="number" class="potIn" id="pot-${k}" data-pot="${k}" min="0" step="any"
+                   inputmode="decimal" placeholder="$0" value="${pots[k] ?? ''}" aria-label="${label} in USD">
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="sechead"><h2>Affordability</h2><span class="c">${funds ? `${affordable} within reach` : 'cheapest first'}</span></div>
+    ${funds ? `<div class="affmarkrow"><div class="affmarklab" style="left:${Math.min(88, Math.max(12, Math.round(funds / maxCost * 100)))}%">${usd(funds)} YOU CAN RAISE</div></div>` : ''}
+    ${ranked.map(s => {
+      const on = cmpSet.has(s.id);
+      const within = funds && (s.totalUsd || 0) <= funds;
+      return `
+      <button class="affrow ${on ? 'on' : ''}" onclick="__cmp('${s.id}')" aria-pressed="${on}">
+        <div class="afftop">
+          <img class="logo" data-logo="${s.id}" alt="" style="width:20px;height:20px;border-radius:5px">
+          <div class="nm">${esc(shortName(s.name))}${s.flag ? ' <span style="color:var(--amber)">⚑</span>' : ''}</div>
+          <div class="amt ${within ? 'ok' : ''}">${usd(s.totalUsd)}</div>
+        </div>
+        <div class="afftrack">
+          <div class="afffill ${!funds ? '' : within ? 'ok' : 'short'}" style="width:${Math.round((s.totalUsd || 0) / maxCost * 100)}%"></div>
+          ${funds ? `<div class="affmark" style="left:${Math.round(funds / maxCost * 100)}%"></div>` : ''}
+        </div>
+      </button>`;
+    }).join('')}
+    ${funds ? `<div class="affkey">
+      <span><i class="swatch" style="background:var(--green)"></i>affordable</span>
+      <span><i class="swatch" style="background:var(--red)"></i>past the line</span>
+    </div>` : `<div class="setnote" style="padding:8px 0 0">Fill in what you could raise above and every bar turns green or red against it.</div>`}
+
+    ${cmp.length >= 2 ? `
+      <div class="sechead"><h2>Head to head</h2><button class="editlink" onclick="__cmpClear()">clear</button></div>
+      <div class="tscroll"><table style="min-width:${150 * cmp.length + 120}px">
+        <thead><tr><th></th>${cmp.map(s => `<th>${esc(shortName(s.name))}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${[
+            ['Deadline', s => `${fmtDate(s.deadline)}${s.estimated ? ' <span class="est">est</span>' : ''}`],
+            ['Countdown', s => isSent(s) ? APP_LABEL[appStatus(s)] : dueText(daysTo(s.deadline))],
+            ['Status', s => appStatus(s) === 'none' ? '—' : `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>`],
+            ['QS global', s => s.rank?.global != null ? `#${s.rank.global}`
+              : s.rank?.joint != null ? `#${s.rank.joint} <span class="c">joint</span>` : '—'],
+            ['QS in country', s => s.rank?.country != null ? `#${s.rank.country} <span class="c">${esc(s.country || '')}</span>` : '—'],
+            ['QS in Europe', s => s.rank?.europe != null ? `#${s.rank.europe}` : '—'],
+            ['Priority', s => `<span class="pill p-${s.priority}">${s.priority}</span>`],
+            ['Test waiver', s => `<span class="pill w-${s.waiver}">${s.waiver}</span>`],
+            ['Starts', s => startHtml(s)],
+            ['Duration', s => esc(s.duration || '—')],
+            ['Tuition (local)', s => `${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}`],
+            ['Tuition (USD)', s => usd(s.tuitionUsd)],
+            ['All-in (USD)', s => `<b>${usd(s.totalUsd)}</b>`],
+            ['App fee', s => s.appFeeUsd ? usd(s.appFeeUsd) : '—'],
+            ...(funds ? [['Gap', s => { const g = funds - s.totalUsd - (s.appFeeUsd || 0); return g >= 0 ? '<span class="gap-ok">covered</span>' : `<span class="gap-short">−${usd(Math.abs(g))}</span>`; }]] : []),
+            ['Progress', s => `${pct(s.tasks)}% · ${(s.tasks || []).filter(t => t.done).length}/${(s.tasks || []).length} tasks`],
+            ['Scholarship deadline', s => s.schDeadline ? fmtDate(s.schDeadline) : '—'],
+            ['Scholarship', s => esc(s.scholarship)],
+          ].map(([label, fn]) => `<tr><td style="font-weight:600;white-space:nowrap">${label}</td>${cmp.map(s => `<td>${fn(s)}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table></div>`
+    : `<div class="setnote" style="padding:12px 0 0">TAP TWO OR THREE BARS TO COMPARE THEM</div>`}
+
+    <div class="sechead"><h2>Funding routes</h2><span class="c">${funding.length} routes</span></div>
+    <div class="grid">
+      ${funding.map(f => `
+        <div class="card"><div class="chead" style="cursor:default;display:block;padding:12px 14px">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div style="flex:1;min-width:0;font-size:14px;font-weight:600;letter-spacing:-.01em">${esc(f.name)}</div>
+            <span class="pill">${esc(f.type)}</span>
+          </div>
+          <div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5">${esc(f.detail)}</div>
+          <div class="mono" style="font-size:10.5px;color:var(--accent);margin-top:8px;line-height:1.5">→ ${esc(f.action)}</div>
+        </div></div>`).join('')}
+    </div>
+
+    <div class="setnote" style="padding:16px 0 0">
       FX: EUR 1 ≈ USD 1.08 · GBP 1 ≈ USD 1.27 · CHF 1 ≈ USD 1.12 (late June 2026).
       ${fxRate()
-        ? `Naira shown in brackets after each USD figure at ₦${Number(fxRate()).toLocaleString('en-GB')}/$1 — the rate you set in Settings. The “local” column stays in the school’s own currency; its naira equivalent is the one beside it.`
-        : `Set a naira rate in <b style="color:var(--accent)">Settings → Exchange rate</b> to see every figure in naira as well.`}
+        ? `Naira shown after each USD figure at ₦${Number(fxRate()).toLocaleString('en-GB')}/$1 — the rate you set under More.`
+        : `Set a naira rate under <b style="color:var(--accent)">More → Exchange rate</b> to see every figure in naira as well.`}
       ⚑ marks figures needing direct verification with the school.
       ${feeSchools.length
-        ? `Application fees entered so far: <b style="color:var(--paper)">${usd(feeTotal)}</b> across ${feeSchools.length} of ${ranked.length} schools (set each under the school's deadline → edit); fees are counted in the Gap column.`
-        : `No application fees entered yet — each school's edit panel (deadline → edit) has an “App fee” field; eighteen fees are a real cash line worth seeing.`}
-    </div>
-
-    <div class="sechead"><h2>Compare</h2><span class="c">pick two or three</span></div>
-    <div class="chips">
-      ${ranked.map(s => `<button class="chip ${cmpSet.has(s.id) ? 'on' : ''}" onclick="__cmp('${s.id}')">${esc(s.name.replace(/ EMBA| GEMBA| Fellows| Global| College/g, '').trim() || s.name)}</button>`).join('')}
-    </div>
-    ${cmp.length >= 2 ? `<div class="tscroll"><table style="min-width:${220 * cmp.length + 130}px">
-      <thead><tr><th></th>${cmp.map(s => `<th>${esc(s.name)}</th>`).join('')}</tr></thead>
-      <tbody>
-        ${[
-          ['Deadline', s => `${fmtDate(s.deadline)}${s.estimated ? ' <span class="est">est</span>' : ''}`],
-          ['Countdown', s => isSent(s) ? APP_LABEL[appStatus(s)] : dueText(daysTo(s.deadline))],
-          ['Status', s => appStatus(s) === 'none' ? '—' : `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>`],
-          ['QS global', s => s.rank?.global != null ? `#${s.rank.global}`
-            : s.rank?.joint != null ? `#${s.rank.joint} <span class="c">joint</span>` : '—'],
-          ['QS in country', s => s.rank?.country != null ? `#${s.rank.country} <span class="c">${esc(s.country || '')}</span>` : '—'],
-          ['QS in Europe', s => s.rank?.europe != null ? `#${s.rank.europe}` : '—'],
-          ['Priority', s => `<span class="pill p-${s.priority}">${s.priority}</span>`],
-          ['Test waiver', s => `<span class="pill w-${s.waiver}">${s.waiver}</span>`],
-          ['Starts', s => startHtml(s)],
-          ['Duration', s => esc(s.duration || '—')],
-          ['Tuition (local)', s => `${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}`],
-          ['Tuition (USD)', s => usd(s.tuitionUsd)],
-          ['All-in (USD)', s => `<b>${usd(s.totalUsd)}</b>`],
-          ['App fee', s => s.appFeeUsd ? usd(s.appFeeUsd) : '—'],
-          ...(funds ? [['Gap', s => { const g = funds - s.totalUsd - (s.appFeeUsd || 0); return g >= 0 ? '<span class="gap-ok">covered</span>' : `<span class="gap-short">−${usd(Math.abs(g))}</span>`; }]] : []),
-          ['Progress', s => `${pct(s.tasks)}% · ${(s.tasks || []).filter(t => t.done).length}/${(s.tasks || []).length} tasks`],
-          ['Scholarship deadline', s => s.schDeadline ? fmtDate(s.schDeadline) : '—'],
-          ['Scholarship', s => esc(s.scholarship)],
-        ].map(([label, fn]) => `<tr><td style="font-weight:600;white-space:nowrap">${label}</td>${cmp.map(s => `<td>${fn(s)}</td>`).join('')}</tr>`).join('')}
-      </tbody>
-    </table></div>` : `<div class="setnote" style="padding:0 0 6px">Tap two or three schools above to see them side by side — the quickest way to decide which switch to flick off in Settings.</div>`}
-
-    <div class="sechead"><h2>Funding sources</h2><span class="c">${funding.length} routes</span></div>
-    <div class="tscroll"><table>
-      <thead><tr><th>Source</th><th>Type</th><th>Detail</th><th>Action</th></tr></thead>
-      <tbody>
-        ${funding.map(f => `<tr>
-          <td style="font-weight:500">${esc(f.name)}</td>
-          <td style="color:var(--muted)">${esc(f.type)}</td>
-          <td style="color:var(--muted)">${esc(f.detail)}</td>
-          <td>${esc(f.action)}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table></div>`;
+        ? `Application fees entered so far: <b style="color:var(--paper)">${usd(feeTotal)}</b> across ${feeSchools.length} of ${ranked.length} schools; fees count towards the gap.`
+        : `No application fees entered yet — each school's Facts pane has an “App fee” field under edit.`}
+    </div>`;
 
   hydrateLogos($('#p-money'));
 }
@@ -2591,7 +2907,15 @@ function renderSettings() {
   const schools = (data.schools || []).slice()
     .sort((a, b) => a.name.localeCompare(b.name));
   $('#p-settings').innerHTML = `
-    <div class="sechead"><h2>Settings</h2><span class="c">appearance, data and backups</span></div>
+    <div class="sechead"><h2>More</h2><span class="c">appearance, data and backups</span></div>
+
+    <!-- The three things anyone actually comes to this screen to do, lifted
+         out of the rows below so they are one tap rather than a scroll. -->
+    <div class="qarow">
+      <button class="qabtn" onclick="__calendar()"><div class="ic">⤓</div><div class="lb">CALENDAR</div></button>
+      <button class="qabtn" onclick="__backup()"><div class="ic">☁</div><div class="lb">BACK UP</div></button>
+      <button class="qabtn" onclick="__restore()"><div class="ic">↺</div><div class="lb">RESTORE</div></button>
+    </div>
 
     <div class="set">
       <div class="setrow">
@@ -2980,12 +3304,17 @@ function renderChat() {
   const key = activeKey();
 
   if (!aiChat.length && !aiBusy) {
+    const n = activeSchools().length;
     box.innerHTML = key
-      ? `<div class="aiempty"><b>Ask anything about your applications</b>
-           Using the key <span class="mono">${esc(key.label)}</span>. Try “which deadline
-           should I be worrying about?” or “draft three bullet points on why an EMBA now”.</div>`
+      ? `<div style="font-size:14px;color:var(--muted);line-height:1.6">
+           It can see all ${n} schools, every deadline, your ticks and your funding
+           numbers. Ask it anything, or start here.</div>
+         <div class="aisugs">${AI_SUGGESTIONS.map(([tag, q], i) => `
+           <button class="aisug" onclick="__aiSug(${i})">
+             <span class="tag">${tag}</span><span class="q">${esc(q)}</span>
+           </button>`).join('')}</div>`
       : `<div class="aiempty"><b>No API key yet</b>
-           Add a Gemini API key under <b>Settings → Ask Gemini</b>, then come back.
+           Add a Gemini API key under <b>More → Ask Gemini</b>, then come back.
            Keys are free to create at aistudio.google.com.</div>`;
     return;
   }
@@ -3010,26 +3339,8 @@ function renderChat() {
       <div class="aimsg ai"><div class="aibody">
         <span class="aidots"><i></i><i></i><i></i></span></div></div>`);
   }
-  box.scrollTop = box.scrollHeight;
-}
-
-/* ---- The sheet ---- */
-function aiOpen() {
-  const sheet = $('#aisheet');
-  sheet.hidden = false;
-  // Stop the page behind scrolling under the sheet when the message list
-  // hits its end — otherwise a flick keeps going and the tracker moves.
-  document.body.style.overflow = 'hidden';
-  $('#aictx').checked = !!(data.ai && data.ai.useContext);
-  renderChat();
-  aiSyncModelLine();
-  // Not on a phone: focusing raises the on-screen keyboard over the sheet
-  // before there is anything to read.
-  if (window.matchMedia('(min-width:641px)').matches) $('#aiin').focus();
-}
-function aiClose() {
-  $('#aisheet').hidden = true;
-  document.body.style.overflow = '';
+  // The thread scrolls with the page now, not inside its own box.
+  if (aiChat.length) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 
 function aiSyncModelLine() {
@@ -3083,9 +3394,6 @@ async function aiSend() {
   }
 }
 
-$('#aifab').addEventListener('click', aiOpen);
-$('#aiclose').addEventListener('click', aiClose);
-$('#aibackdrop').addEventListener('click', aiClose);
 $('#aisend').addEventListener('click', aiSend);
 $('#aiclear').addEventListener('click', () => {
   if (!aiChat.length) return;
@@ -3102,15 +3410,29 @@ $('#aiin').addEventListener('keydown', (e) => {
   // get a second line. Ctrl/Cmd+Enter sends, as does the button.
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); aiSend(); }
 });
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !$('#aisheet').hidden) aiClose();
-});
+/* Openers. Tapping one sends it straight away — the point of a suggestion
+   is that you did not have to think of the question. */
+const AI_SUGGESTIONS = [
+  ['TRIAGE',    'What should I do first this week, and why?'],
+  ['MONEY',     'Which three schools can I actually afford?'],
+  ['RISK',      'Which deadlines am I most likely to miss?'],
+  ['SHORTLIST', 'Given my QS ranks and costs, which five should I keep?'],
+];
+window.__aiSug = (i) => {
+  const q = AI_SUGGESTIONS[i];
+  if (!q) return;
+  $('#aiin').value = q[1];
+  aiGrow();
+  aiSend();
+};
 
-/* The button carries a dot until a key is stored, so the reason it cannot
-   answer is visible without opening it. */
+/* Kept as a name because render() calls it. The composer now says why it
+   cannot answer, which is a better place for it than a dot on a button. */
 function refreshFab() {
-  const fab = $('#aifab');
-  if (fab) fab.classList.toggle('nokey', !activeKey());
+  const el = $('#aiin');
+  if (el) el.placeholder = activeKey()
+    ? 'Ask about your applications…'
+    : 'Add a Gemini API key under More first';
 }
 
 /* ---- Settings: stored keys ---- */
@@ -3174,8 +3496,7 @@ function render() {
   if (!data) return;
   renderDash();
   renderSchools();
-  renderSteps();
-  renderActions();
+  renderPlan();
   renderMoney();
   renderSettings();
   refreshFab();
