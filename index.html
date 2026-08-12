@@ -480,6 +480,13 @@ th.num{text-align:right}
 }
 .rline .rx{color:var(--muted);font-size:12px;padding:4px 7px;border-radius:4px}
 .rline .rx:hover{color:var(--red);background:var(--red-lo)}
+/* A start window now carries its travel cadence as well as its date, which
+   is six controls — more than one phone line holds, so it wraps and the
+   cadence trio drops onto the row beneath the label and date. */
+.iline{flex-wrap:wrap}
+.iline .ilab{flex:1 1 90px;min-width:0}
+.iline .itrips,.iline .idays{width:74px;flex:0 0 auto}
+.iline .iwhere{flex:1 1 120px;min-width:0;width:auto}
 
 /* ---------- Settings ---------- */
 .set{border:1px solid var(--line);border-radius:12px;background:var(--ink-2);padding:4px 16px;margin-bottom:14px}
@@ -763,10 +770,17 @@ th.num{text-align:right}
 .factcell{background:var(--ink-2);padding:11px 12px;min-width:0}
 .factcell .k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;color:var(--muted)}
 .factcell .v{font-size:13.5px;margin-top:5px;line-height:1.35;overflow-wrap:anywhere}
-.factcell .v.amber{color:var(--amber)}
-.factcell .v.green{color:var(--green)}
-.factcell .v.red{color:var(--red)}
-.factcell .v.dim{color:var(--muted)}
+.factcell .v.amber,.cinfo .amber{color:var(--amber)}
+.factcell .v.green,.cinfo .green{color:var(--green)}
+.factcell .v.red,.cinfo .red{color:var(--red)}
+.factcell .v.dim,.cinfo .dim{color:var(--muted)}
+/* Travel load on the collapsed row — the one fact that decides whether a
+   programme is possible at all, so it does not wait for a tap. */
+.trav{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.05em;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.trav.green{background:var(--green-lo);color:var(--green)}
+.trav.amber{background:var(--amber-lo);color:var(--amber)}
+.trav.red{background:var(--red-lo);color:var(--red)}
+.trav.dim{background:var(--ink-3);color:var(--muted)}
 
 /* ---- School card: money pane ---- */
 .moneytop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
@@ -997,7 +1011,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.18.0';
+const APP_VERSION = 'v1.20.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -1225,6 +1239,101 @@ function migrate(d) {
       if (iw.deadline === undefined) { iw.deadline = null; changed = true; }
     });
     if (s.duration === undefined) { s.duration = ''; changed = true; }
+  });
+
+  /* Researched August 2026 — travel cadence, published rounds, admissions
+     pages and the rest of the QS table. Additive throughout: a field you
+     have already filled in or corrected is never written over, because the
+     school telling you something on the phone beats anything read off a
+     web page months earlier. */
+  (d.schools || []).forEach((s) => {
+    const sd = (seed.schools || []).find((x) => x.id === s.id);
+    if (!sd) return;
+
+    /* Start windows that gained real months. LBS's two streams differ by
+       half the campus days, which is the whole reason for tracking
+       cadence. IMD and HEC said "Rolling" and "Multiple intakes" — true,
+       but you cannot count back six months from a word, so the rolling
+       apply-by had nothing to anchor to. */
+    const NEW_WINDOWS = {
+      'lbs-emba':  { from: 'Sep 2027',         add: ['Jan 2027'] },
+      'imd-emba':  { from: 'Rolling',          add: ['Apr 2027', 'Sep 2027'], replace: true },
+      'hec-paris': { from: 'Multiple intakes', add: ['Mar 2027', 'Sep 2027'], replace: true },
+    };
+    const nw = NEW_WINDOWS[s.id];
+    if (nw && s.start === nw.from) {
+      const keep = nw.replace ? [] : (s.intakes || []);
+      const added = nw.add
+        .filter((l) => !keep.some((iw) => iw.label === l))
+        .map((label) => ({ label, on: true, deadline: null, cadence: null }));
+      s.intakes = [...added, ...keep];
+      s.start = s.intakes.map((iw) => iw.label).join(' / ');
+      changed = true;
+    }
+
+    // Cadence hangs off the start window, so match by label and fall back
+    // to the school-wide figure for programmes with one format.
+    (s.intakes || []).forEach((iw) => {
+      if (iw.cadence) return;
+      const c = cadenceFor(s.id, iw.label);
+      if (c && c.days != null) { iw.cadence = c; changed = true; }
+    });
+
+    if (!s.url && sd.url) { s.url = sd.url; changed = true; }
+
+    // Only where you have not entered any rounds yourself.
+    if (!(s.rounds || []).length && (sd.rounds || []).length) {
+      s.rounds = sd.rounds.map((r) => ({ ...r }));
+      changed = true;
+    }
+
+    /* Where the dates come from — published, last year's calendar, or a
+       rolling apply-by. Backfilled once so the card can say so.
+
+       Rolling and prior-year rounds are also added to a school that
+       already has rounds, because the earlier version of this app left
+       those schools empty: an absent round there means "we never had
+       any", not "you deleted them". Each is matched on label+date so
+       running the migration twice cannot duplicate one, and anything
+       you have since edited or removed by hand stays gone. */
+    // Derived metadata, not something you can edit, so it is kept in step
+    // with the seed rather than backfilled once and left to go stale.
+    if (s.admissions !== sd.admissions) { s.admissions = sd.admissions || 'unknown'; changed = true; }
+    if (s.rollingNote !== sd.rollingNote) { s.rollingNote = sd.rollingNote || ''; changed = true; }
+    if (!s.roundsBackfilled && (sd.rounds || []).some((r) => r.est)) {
+      const have = new Set((s.rounds || []).map((r) => `${r.label}|${r.date}`));
+      sd.rounds.filter((r) => r.est && !have.has(`${r.label}|${r.date}`))
+        .forEach((r) => s.rounds.push({ ...r }));
+      s.rounds.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      // Deliberately NOT touching s.estimated. Adding a derived round says
+      // nothing about the deadline you already rang the school and
+      // confirmed — flipping that back would throw away the one piece of
+      // information here that came from a person rather than a web page.
+      // The ~ on each round and the DATES FROM row carry the caveat.
+      s.roundsBackfilled = true;
+      changed = true;
+    }
+
+    /* A generated "Apply by" is only ever useful where the school gives
+       you nothing else. Once one of its real rounds lands within a
+       fortnight of the generated date, the pair reads as two deadlines
+       when there is one — so the generated one goes. */
+    const gen = (s.rounds || []).filter((r) => r.rolling);
+    if (gen.length) {
+      const real = (s.rounds || []).filter((r) => !r.rolling && r.date);
+      const dup = gen.filter((g) => real.some((r) =>
+        Math.abs(new Date(r.date + 'T00:00:00') - new Date(g.date + 'T00:00:00')) < 14 * 86400000));
+      if (dup.length) {
+        s.rounds = s.rounds.filter((r) => !dup.includes(r));
+        changed = true;
+      }
+    }
+
+    // Fill blanks in the rank object one field at a time.
+    s.rank = s.rank || { global: null, country: null, europe: null, joint: null };
+    ['global', 'country', 'europe', 'joint'].forEach((k) => {
+      if (s.rank[k] == null && sd.rank && sd.rank[k] != null) { s.rank[k] = sd.rank[k]; changed = true; }
+    });
   });
 
   const a1 = (d.actions || []).find((a) => a.id === 'a1');
@@ -1671,11 +1780,27 @@ function harvestIntakes(id) {
   const s = (data.schools || []).find(x => x.id === id);
   const box = $('#intakes-' + id);
   if (!s || !box) return s;
-  s.intakes = Array.from(box.querySelectorAll('.iline')).map(row => ({
-    label: row.querySelector('.ilab').value.trim(),
-    on: row.querySelector('.ion').checked,
-    deadline: row.querySelector('.idate').value || null,
-  }));
+  s.intakes = Array.from(box.querySelectorAll('.iline')).map((row, i) => {
+    const num = (sel) => {
+      const v = parseFloat(row.querySelector(sel).value);
+      return isFinite(v) && v >= 0 ? v : null;
+    };
+    const days = num('.idays');
+    const where = row.querySelector('.iwhere').value.trim();
+    // A blank trips box on a window that has days is a full-time programme,
+    // not a missing figure — that is how MIT Sloan is expressed. With no
+    // days either, there is simply nothing recorded, so keep the note from
+    // the previous cadence rather than inventing an empty one.
+    const prev = (s.intakes || [])[i] || {};
+    return {
+      label: row.querySelector('.ilab').value.trim(),
+      on: row.querySelector('.ion').checked,
+      deadline: row.querySelector('.idate').value || null,
+      cadence: (days == null && !where)
+        ? null
+        : { trips: num('.itrips'), days, where, note: prev.cadence?.note || '' },
+    };
+  });
   return s;
 }
 
@@ -1994,6 +2119,75 @@ function dotBar(tasks) {
    three, and the third one is the same on half the list. */
 function shortName(name) {
   return String(name).replace(/ (EMBA|GEMBA|Global EMBA|Executive MBA)$/, '').trim() || name;
+}
+
+/* ---------------- Calendar load ----------------
+   How often the programme actually pulls you out of the country. It sits
+   on the start window rather than the school because that is where it
+   differs — LBS September is a fortnightly London commute, LBS January
+   is half the campus days for the same degree. A ranking will never tell
+   you that, and it is usually the thing that decides whether a programme
+   is possible at all. */
+
+/* The cadence that applies if you go. If you are already tracking a
+   specific window, that one. Otherwise the lightest of the windows still
+   switched on — the question at shortlisting time is "what is the best
+   this school can do for my calendar", and picking the gentler intake is
+   a real answer. Nothing is hidden by this: where two windows differ the
+   Facts pane lists both side by side. */
+function cadenceOf(s) {
+  const on = (s.intakes || []).filter((i) => i.on && i.cadence && i.cadence.days != null);
+  const tracked = on.find((i) => i.deadline && i.deadline === s.deadline);
+  if (tracked) return tracked.cadence;
+  if (!on.length) return ((s.intakes || [])[0] || {}).cadence || null;
+  return on.slice().sort((a, b) =>
+    (a.cadence.trips ?? Infinity) - (b.cadence.trips ?? Infinity))[0].cadence;
+}
+
+/* True when the school offers a genuine choice of calendar, not just a
+   choice of start date. */
+function cadenceVaries(s) {
+  const t = (s.intakes || [])
+    .filter((i) => i.cadence && i.cadence.days != null)
+    .map((i) => i.cadence.trips);
+  return new Set(t).size > 1;
+}
+
+/* Trips per month is the honest unit, but nobody thinks in decimals. */
+function tripPhrase(t) {
+  if (t == null) return 'full-time — relocate';
+  if (t >= 1.75) return '2 trips a month';
+  if (t >= 1.25) return '1–2 trips a month';
+  if (t >= 0.85) return 'about monthly';
+  if (t >= 0.6)  return 'every 6 weeks';
+  return `every ${Math.round(1 / t)} months`;
+}
+
+function travelText(c) {
+  if (!c || c.days == null) return '—';
+  return c.trips == null
+    ? `Full-time · ${c.days} days`
+    : `${tripPhrase(c.trips)} · ${c.days} days out`;
+}
+
+/* Lighter sorts first. A full-time programme is not a heavier commute,
+   it is a different kind of decision, so it goes last rather than
+   pretending to sit on the same scale. */
+function travelLoad(s) {
+  const c = cadenceOf(s);
+  if (!c || c.days == null) return UNRANKED;
+  if (c.trips == null) return UNRANKED - 1;
+  return c.trips * 1000 + (c.days || 0);
+}
+
+/* Green when the calendar is genuinely light, amber for a monthly-ish
+   commitment, red once it is a fortnightly flight or a relocation. */
+function travelClass(c) {
+  if (!c || c.days == null) return 'dim';
+  if (c.trips == null) return 'red';
+  if (c.trips >= 1.5) return 'red';
+  if (c.trips >= 0.85) return 'amber';
+  return 'green';
 }
 
 /* ---------------- Home ---------------- */
@@ -2410,6 +2604,18 @@ function byRank(k) {
   return (a, b) => (rankOf(a, k) - rankOf(b, k)) || a.name.localeCompare(b.name);
 }
 
+/* How much weight a school's dates can bear. Green means the school said
+   so this cycle; anything else means you are planning on an inference. */
+const ADMISSIONS_LABEL = {
+  'published':  "the school's 2027 calendar",
+  'prior-year': "last year's calendar, +1 year",
+  'rolling':    'rolling — no fixed deadline',
+  'unknown':    'not established',
+};
+const ADMISSIONS_CLASS = {
+  'published': 'green', 'prior-year': 'amber', 'rolling': 'amber', 'unknown': 'dim',
+};
+
 const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, AMBER: 2, STANDARD: 3 };
 const byDeadline = (a, b) => (daysTo(a.deadline) ?? UNRANKED) - (daysTo(b.deadline) ?? UNRANKED);
 
@@ -2420,6 +2626,7 @@ const SORTS = {
   country:  { label: 'QS in country', fn: byRank('country') },
   europe:   { label: 'QS in Europe',  fn: byRank('europe') },
   cost:     { label: 'All-in cost',   fn: (a, b) => (a.totalUsd || 0) - (b.totalUsd || 0) },
+  travel:   { label: 'Travel load',   fn: (a, b) => travelLoad(a) - travelLoad(b) },
 };
 
 let schoolSort = 'default';
@@ -2499,6 +2706,7 @@ function renderSchools() {
         const pane = filtering ? 'tasks' : (paneOf[s.id] || 'tasks');
         const rankBit = r.global != null ? `QS #${r.global}`
           : r.joint != null ? `QS #${r.joint} joint` : 'unranked';
+        const cad = cadenceOf(s);
         const need = (s.totalUsd || 0) + (s.appFeeUsd || 0);
         const gap = funds - need;
         const tw = Math.round((s.tuitionUsd || 0) / Math.max(1, s.totalUsd || 1) * 100);
@@ -2516,6 +2724,7 @@ function renderSchools() {
               <div class="cname">${esc(s.name)}</div>
               <div class="cmeta">
                 <span class="pill p-${s.priority}">${s.priority}</span>
+                ${cad ? `<span class="trav ${travelClass(cad)}" title="${esc(travelText(cad))}${cadenceVaries(s) ? ' — the lighter of two start windows' : ''}">${esc(tripPhrase(cad.trips)).toUpperCase()}${cadenceVaries(s) ? ' ⑂' : ''}</span>` : ''}
                 <span class="mono">${rankBit} · ${esc(s.geo)}${st !== 'none' ? ' · ' + APP_LABEL[st] : ''}</span>
               </div>
               <div style="margin-top:9px">${dotBar(s.tasks)}</div>
@@ -2545,18 +2754,42 @@ function renderSchools() {
                   ${fact('PROGRESS', `${p}% · ${(s.tasks||[]).filter(t=>t.done).length}/${(s.tasks||[]).length}`)}
                   ${fact('STARTS', startHtml(s))}
                   ${fact('LENGTH', esc(s.duration || '—'))}
+                  ${fact('TRAVEL', esc(travelText(cad)), travelClass(cad))}
+                  ${fact('WHERE', esc(cad?.where || '—'), 'dim')}
                   ${fact('QS RANKS', rankHtml(s))}
                   ${fact('TEST WAIVER', esc(s.waiver), s.waiver === 'Green' ? 'green' : s.waiver === 'Amber' ? 'amber' : 'red')}
                   ${fact('WHY THIS DATE', esc(s.deadlineNote || '—'), 'dim')}
+                  ${fact('DATES FROM', ADMISSIONS_LABEL[s.admissions] || 'not established', ADMISSIONS_CLASS[s.admissions] || 'dim')}
                   ${fact('WATCH', s.flag ? esc(s.flag) : 'nothing flagged', s.flag ? 'amber' : 'dim')}
                 </div>
+                ${s.rollingNote ? `<div class="panebody" style="padding-bottom:0">
+                  <div class="cinfo"><b>Rolling admissions —</b> ${esc(s.rollingNote)}</div>
+                </div>` : ''}
+                ${s.admissions === 'prior-year' ? `<div class="panebody" style="padding-bottom:0">
+                  <div class="cinfo"><span class="amber">This school has not published its 2027 dates.</span>
+                    The rounds below are last cycle's, moved on a year to the same weekday. Treat them as
+                    the shape of the calendar, not the calendar — then ring admissions and correct them.</div>
+                </div>` : ''}
+                ${cad?.note ? `<div class="panebody" style="padding-bottom:0">
+                  <div class="cinfo"><b>The calendar —</b> ${esc(cad.note)}</div>
+                </div>` : ''}
+                ${(s.intakes || []).filter(iw => iw.cadence && iw.cadence.days != null).length > 1 ? `
+                  <div class="panebody" style="padding-bottom:0">
+                    <div class="recmeta" style="margin:0 0 6px">The two start windows are not the same commitment:</div>
+                    ${(s.intakes || []).filter(iw => iw.cadence && iw.cadence.days != null).map(iw => `
+                      <div class="cinfo" style="margin-bottom:4px">
+                        <b>${esc(iw.label)}${iw.on ? '' : ' (off)'}</b> — <span class="${travelClass(iw.cadence)}">${esc(travelText(iw.cadence))}</span>
+                      </div>`).join('')}
+                  </div>` : ''}
                 <div class="panebody" style="padding-bottom:0">
                   ${s.rolledFrom ? `<div class="cinfo" style="color:var(--amber)">Earlier round missed (was ${fmtDate(s.rolledFrom)}) — now tracking the next one.</div>` : ''}
                   ${rs.length && !editingDL.has(s.id) ? `<div class="cinfo"><b>Rounds:</b> ${rs.map(rr => {
                     const rn = daysTo(rr.date);
                     const off = !winOn(s, rr.win);
                     const stat = off ? ' (window off)' : rn < 0 ? ' (passed)' : (rr.date === s.deadline ? ' ← tracking' : '');
-                    const txt = `${esc(rr.label || '')}${rr.win ? ` <span class="c">[${esc(rr.win)}]</span>` : ''} ${fmtDate(rr.date)}${stat}`;
+                    // A ~ marks anything the school did not actually give
+                    // us — a rolling apply-by, or last year's date moved on.
+                    const txt = `${esc(rr.label || '')}${rr.win ? ` <span class="c">[${esc(rr.win)}]</span>` : ''} ${rr.est ? '~' : ''}${fmtDate(rr.date)}${stat}`;
                     return off ? `<s style="opacity:.55">${txt}</s>` : txt;
                   }).join(' · ')}</div>` : ''}
                   <div class="cinfo" style="margin-top:6px">
@@ -2587,13 +2820,16 @@ function renderSchools() {
                         </div>
                       </div>
                       <div id="intakes-${s.id}" style="flex-basis:100%">
-                        <div class="recmeta" style="margin:2px 0 4px">Start windows: untick one to switch it off. Each window can carry its own application deadline — the tracker follows the earliest upcoming date across windows and rounds.</div>
+                        <div class="recmeta" style="margin:2px 0 4px">Start windows: untick one to switch it off. Each window can carry its own application deadline — the tracker follows the earliest upcoming date across windows and rounds. <b>Trips</b> is travel events per month (leave blank for a full-time programme) and <b>days</b> is time out of the office; correct both as admissions confirms them.</div>
                         ${(s.intakes || []).map((iw, i) => `
                           <div class="rline iline">
                             <input type="checkbox" class="ion" ${iw.on ? 'checked' : ''} aria-label="Start window active">
                             <input type="text" class="ilab" value="${esc(iw.label || '')}" placeholder="e.g. Sep 2027" aria-label="Start window">
                             <input type="date" class="idate" value="${iw.deadline || ''}" aria-label="Deadline for this window">
                             <button type="button" class="rx" onclick="__delIntake('${s.id}',${i})" aria-label="Remove start window">✕</button>
+                            <input type="number" class="itrips" min="0" step="any" value="${iw.cadence?.trips ?? ''}" placeholder="trips/mo" aria-label="Travel events per month for ${esc(iw.label || '')}">
+                            <input type="number" class="idays" min="0" step="1" value="${iw.cadence?.days ?? ''}" placeholder="days out" aria-label="Days out of office for ${esc(iw.label || '')}">
+                            <input type="text" class="iwhere" value="${esc(iw.cadence?.where || '')}" placeholder="where" aria-label="Where you have to be for ${esc(iw.label || '')}">
                           </div>`).join('')}
                       </div>
                       <button class="editlink" onclick="__addIntake('${s.id}')">+ add start window</button>
@@ -2851,6 +3087,7 @@ function renderMoney() {
         <tbody>
           ${[
             ['Deadline', s => `${fmtDate(s.deadline)}${s.estimated ? ' <span class="est">est</span>' : ''}`],
+            ['Dates from', s => `<span class="${ADMISSIONS_CLASS[s.admissions] || 'dim'}">${ADMISSIONS_LABEL[s.admissions] || 'not established'}</span>`],
             ['Countdown', s => isSent(s) ? APP_LABEL[appStatus(s)] : dueText(daysTo(s.deadline))],
             ['Status', s => appStatus(s) === 'none' ? '—' : `<span class="pill ap-${appStatus(s)}">${APP_LABEL[appStatus(s)]}</span>`],
             ['QS global', s => s.rank?.global != null ? `#${s.rank.global}`
@@ -2861,6 +3098,8 @@ function renderMoney() {
             ['Test waiver', s => `<span class="pill w-${s.waiver}">${s.waiver}</span>`],
             ['Starts', s => startHtml(s)],
             ['Duration', s => esc(s.duration || '—')],
+            ['Travel', s => { const c = cadenceOf(s); return `<span class="${travelClass(c)}">${esc(travelText(c))}</span>`; }],
+            ['Where', s => { const c = cadenceOf(s); return esc(c?.where || '—'); }],
             ['Tuition (local)', s => `${esc(s.ccy)} ${Number(s.tuitionLocal).toLocaleString('en-GB')}`],
             ['Tuition (USD)', s => usd(s.tuitionUsd)],
             ['All-in (USD)', s => `<b>${usd(s.totalUsd)}</b>`],
@@ -3150,6 +3389,7 @@ function aiContext() {
     .forEach((s) => {
       const n = daysTo(s.deadline);
       const open = (s.tasks || []).filter((t) => !t.done).length;
+      const cad = cadenceOf(s);
       lines.push([
         `- ${s.name} (${s.geo || '?'})`,
         `deadline ${s.deadline || 'not set'}${n != null ? ` — ${dueText(n)}` : ''}`,
@@ -3158,8 +3398,22 @@ function aiContext() {
         `starts ${s.start || '?'}`,
         s.totalUsd ? `all-in about $${Number(s.totalUsd).toLocaleString('en-GB')}` : null,
         s.rank?.global != null ? `QS global #${s.rank.global}` : null,
+        // The calendar is usually the binding constraint, so it goes in
+        // the context rather than being something the user has to
+        // re-explain in every question.
+        cad ? `travel: ${travelText(cad)}${cad.where ? ` in ${cad.where}` : ''}` : null,
+        cad?.note ? `format: ${cad.note}` : null,
         `${open} task${open === 1 ? '' : 's'} outstanding`,
       ].filter(Boolean).join('; '));
+
+      // Where two windows differ, say so explicitly — picking the lighter
+      // one is often a better answer than dropping the school.
+      const alts = (s.intakes || []).filter((iw) => iw.cadence && iw.cadence.days != null);
+      if (alts.length > 1) {
+        lines.push(`    start windows differ: ${alts
+          .map((iw) => `${iw.label} = ${travelText(iw.cadence)}${iw.on ? '' : ' (switched off)'}`)
+          .join(' vs ')}`);
+      }
     });
   const acts = (data.actions || []).filter((a) => !a.done);
   if (acts.length) {

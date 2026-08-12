@@ -63,7 +63,10 @@ const SCHOOLS = [
     tuitionLocal: 125000, ccy: 'CHF', tuitionUsd: 140000,
     totalUsd: 170000,
     duration: '15–18 months',
-    start: 'Rolling',
+    // IMD publishes its two start dates even though it has no deadlines:
+    // 20 September and 25 April. "Rolling" was true but useless — you
+    // cannot count back six months from a word.
+    start: 'Apr 2027 / Sep 2027',
     deadline: '2026-09-15',
     deadlineNote: 'Round 5 — confirm it feeds a 2027 start',
     scholarship: 'Merit-based scholarships. Contact IMD financial aid.',
@@ -96,7 +99,9 @@ const SCHOOLS = [
     tuitionLocal: 134950, ccy: 'GBP', tuitionUsd: 171387,
     totalUsd: 181533,
     duration: '17–22 months',
-    start: 'Sep 2027',
+    // Two streams, and the difference is the whole decision: September is
+    // in-person fortnightly, January is blended and roughly half the days.
+    start: 'Jan 2027 / Sep 2027',
     deadline: '2026-09-30',
     deadlineNote: 'Confirm R1 date with admissions',
     estimated: true,
@@ -249,7 +254,10 @@ const SCHOOLS = [
     tuitionLocal: 110000, ccy: 'EUR', tuitionUsd: 118800,
     totalUsd: 128800,
     duration: '15–18 months',
-    start: 'Multiple intakes',
+    // HEC runs six intakes a year; these are the two Paris ones that fit a
+    // 2027 start. Add the others in the start-window editor if you want
+    // them — the rolling apply-by is generated per window.
+    start: 'Mar 2027 / Sep 2027',
     deadline: '2026-12-31',
     deadlineNote: 'Rolling',
     estimated: true,
@@ -441,18 +449,330 @@ const COUNTRY = {
    joint — QS ranks multi-school programmes in a separate joint-programmes
    table rather than the global one, so those carry a joint rank instead. */
 const QS_RANKS = {
-  'oxford-said':  { global: 1, country: 1, europe: 1 },
-  'hec-paris':    { global: 2, country: 1, europe: 2 },
-  'mit-sloan':    { global: 3, country: 1 },
-  'iese-gemba':   { global: 4, country: 1, europe: 3 },
-  'kellogg-emba': { global: 5, country: 2 },   // tied 5th with Yale
-  'lbs-emba':     { global: 7, country: 2, europe: 4 },
-  'wharton-emba': { global: 8, country: 4 },
-  'insead-gemba': { global: 9, country: 2, europe: 5 },
-  'trium':        { joint: 1 },
+  'oxford-said':      { global: 1,  country: 1, europe: 1 },
+  'hec-paris':        { global: 2,  country: 1, europe: 2 },
+  'mit-sloan':        { global: 3,  country: 1 },
+  'iese-gemba':       { global: 4,  country: 1, europe: 3 },
+  'kellogg-emba':     { global: 5,  country: 2 },   // tied 5th with Yale
+  'lbs-emba':         { global: 7,  country: 2, europe: 4 },
+  'wharton-emba':     { global: 8,  country: 4 },
+  'insead-gemba':     { global: 9,  country: 2, europe: 5 },
+  'booth-emba':       { global: 13, country: 6 },
+  'cambridge-emba':   { global: 17, country: 4, europe: 10 },
+  'imperial-emba':    { global: 19, country: 5, europe: 11 },
+  'manchester-gemba': { global: 21, country: 6, europe: 12 },
+  'escp-emba':        { global: 24, country: 5, europe: 14 },
+  'imd-emba':         { global: 46, country: 2, europe: 21 },
+  'trium':            { joint: 1 },
+  'columbia-lbs':     { joint: 3 },
+  // cambridge-global and sda-bocconi are deliberately absent. QS ranks one
+  // programme per school, and Cambridge's entry is the Cambridge EMBA;
+  // SDA Bocconi sits outside the published top 50. A blank is honest.
+};
+
+/* ---------------------------------------------------------------
+   Calendar load — how often you are actually away, per intake
+   ---------------------------------------------------------------
+   The single most decision-relevant number that no ranking captures.
+   Two intakes of the same programme can differ by a factor of two:
+   LBS September is 21 campus days in year one, LBS January is 13,
+   because September is in-person fortnightly and January is blended.
+   Cambridge's two EMBAs differ by three times as much again — the
+   Global EMBA asks for six travel periods in the whole degree, the
+   Cambridge EMBA for eighteen.
+
+   trips  — travel events per month, averaged over the programme.
+            null means it is not a commuting programme at all.
+   days   — days out of the office. Year one where a school quotes
+            it that way, whole programme otherwise; `note` says which.
+   where  — where you have to physically be.
+
+   Read off each school's own site in August 2026. Schools restructure
+   formats between intakes, so treat these as researched, not
+   contractual, and correct them in the app as admissions confirms. */
+const CADENCE = {
+  'cambridge-emba': {
+    '*': { trips: 1, days: 52, where: 'Cambridge',
+      note: '16 Friday+Saturday weekends plus 4 week-long blocks across 5 terms — 18 travel events in all, roughly one a month' } },
+  'cambridge-global': {
+    '*': { trips: 0.3, days: 30, where: 'Cambridge + 2 overseas',
+      note: 'Only 6 travel periods in the entire programme — 4 week-long blocks in Cambridge, 2 international — plus 11 online blocks. One Cambridge week ≈ three EMBA weekends' } },
+  'oxford-said': {
+    '*': { trips: 1, days: 85, where: 'Oxford',
+      note: '16–18 one-week modules, Mon–Fri, every 4–6 weeks. Some module weeks include the weekend; electives and overseas modules usually do' } },
+  'lbs-emba': {
+    'Jan 2027': { trips: 1, days: 13, where: 'London',
+      note: 'Blended stream — 80% in person, 20% self-paced online. ~13 campus days in year one' },
+    'Sep 2027': { trips: 2, days: 21, where: 'London',
+      note: 'In-person stream — 16 Fridays + Saturdays, every other week. ~21 campus days in year one' } },
+  'insead-gemba': {
+    '*': { trips: 1, days: 62, where: 'Fontainebleau',
+      note: '12 weeks of class in modular blocks. 60–65 working days out of office on the standard track; the Flex option cuts it to ~39' } },
+  'imd-emba': {
+    '*': { trips: 0.5, days: 56, where: 'Lausanne + Singapore',
+      note: '7–9 weeks out of office all in. Mastery stage is six 1-week modules over twelve months, plus 12–15 hrs/week of distance work' } },
+  'trium': {
+    '*': { trips: 0.33, days: 50, where: 'London, NY, Paris, Seoul, Nairobi, Dubai',
+      note: 'Six modules, ~10 weeks in class over 18 months. Three modules are away (Seoul, Nairobi, Dubai) with lodging included' } },
+  'iese-gemba': {
+    '*': { trips: 0.5, days: 45, where: 'Barcelona, Madrid, Munich, NY',
+      note: 'Modular and blended over 16 months — six core modules plus two electives, extending to Silicon Valley and Asia' } },
+  'booth-emba': {
+    '*': { trips: 0.75, days: 96, where: 'London + Chicago + Hong Kong',
+      note: '16 class weeks (Mon–Sat) over 21 months — two non-consecutive weeks per quarter in London, plus 3 weeks in Chicago and 1 in Hong Kong' } },
+  'wharton-emba': {
+    '*': { trips: 2, days: 100, where: 'Philadelphia',
+      note: 'Friday + Saturday every other weekend across six terms, some three-day weekends. Transatlantic every fortnight' } },
+  'columbia-lbs': {
+    '*': { trips: 1, days: 51, where: 'London + New York',
+      note: 'Eight block weeks of 5–7 days, alternating London and New York, about one a month. 51 days across both campuses' } },
+  'kellogg-emba': {
+    '*': { trips: 2, days: 100, where: 'Evanston (or Miami)',
+      note: 'Evanston meets twice a month, Friday + Saturday. Miami is once a month, Thursday afternoon to Sunday midday — pick Miami if you are flying' } },
+  'mit-sloan': {
+    '*': { trips: null, days: 250, where: 'Cambridge, Massachusetts',
+      note: 'NOT a commuting programme. 12 months full-time and residential — you relocate to Massachusetts and stop working' } },
+  'hec-paris': {
+    '*': { trips: 2, days: 50, where: 'Paris',
+      note: '~50 days out of office over 18 months. Two formats: every-other-week (Fri + Sat twice a month in Paris) or modular (5–10 day blocks every two months)' } },
+  'escp-emba': {
+    '*': { trips: 1, days: 40, where: 'Paris, London, Berlin, Madrid, Turin',
+      note: '180 taught hours on a weekday or weekend track, plus 5 week-long international seminars. Core courses can be taken at any of three European campuses or online' } },
+  'sda-bocconi': {
+    '*': { trips: 1, days: 55, where: 'Milan',
+      note: 'One week-long module (Mon–Sat) roughly every two months, with Friday+Saturday weekend modules in the months between' } },
+  'imperial-emba': {
+    '*': { trips: 1.5, days: 50, where: 'London',
+      note: 'Choose two-week blocks (Mon+Tue, then Thu+Fri) or the weekend pattern (Thu afternoon to Sun morning). Online modules cut campus visits further' } },
+  'manchester-gemba': {
+    '*': { trips: 0.25, days: 36, where: 'Manchester (or Dubai, HK, Shanghai, Singapore)',
+      note: 'Blended — face-to-face workshop residentials only three times a year, about 9 days per semester. Attend at your nearest global centre rather than Manchester' } },
+};
+
+/* Admissions pages, read in August 2026. These are what the deadline
+   and cadence figures above came off, so the card can link you back to
+   the source rather than making you search for it again. */
+const ADMISSIONS_URL = {
+  'cambridge-emba':   'https://www.jbs.cam.ac.uk/masters-degrees/executive-mba/apply/',
+  'cambridge-global': 'https://www.jbs.cam.ac.uk/masters-degrees/global-executive-mba/',
+  'oxford-said':      'https://www.sbs.ox.ac.uk/programmes/mbas/executive-mba/how-apply',
+  'lbs-emba':         'https://www.london.edu/masters-degrees/executive-mba/apply',
+  'insead-gemba':     'https://www.insead.edu/master-programmes/global-executive-mba/admissions',
+  'imd-emba':         'https://www.imd.org/emba/admission/',
+  'trium':            'https://www.triumemba.org/admissions/',
+  'iese-gemba':       'https://www.iese.edu/global-executive-mba/admissions-fees/',
+  'booth-emba':       'https://www.chicagobooth.edu/mba/executive/admissions/how-to-apply',
+  'wharton-emba':     'https://executivemba.wharton.upenn.edu/application-timeline-deadlines/',
+  'columbia-lbs':     'https://www.emba-global.com/admissions/how-to-apply',
+  'kellogg-emba':     'https://www.kellogg.northwestern.edu/admissions/emba-admissions/emba-how-to-apply/',
+  'mit-sloan':        'https://mitsloan.mit.edu/fellows/admissions',
+  'hec-paris':        'https://www.hec.edu/en/mba-executive-mba/executive-mba/admissions/application-deadlines',
+  'escp-emba':        'https://escp.eu/programmes/executive-mba',
+  'sda-bocconi':      'https://www.sdabocconi.it/en/mba-executive-mba/executive-mba/admissions',
+  'imperial-emba':    'https://www.imperial.ac.uk/business-school/programmes/executive-mba/admissions/key-dates-and-deadlines/',
+  'manchester-gemba': 'https://www.alliancembs.manchester.ac.uk/study/mba/global-part-time-mba/how-to-apply/',
+};
+
+/* Published rounds, read off each school's own admissions page in
+   August 2026. `win` names the start window a round feeds where the
+   school scopes them that way; null means it applies to every window.
+
+   Schools that genuinely have no rounds — IMD and HEC run rolling
+   admissions — are absent rather than guessed at. */
+const ROUNDS = {
+  'cambridge-emba': [
+    { label: 'R1', date: '2026-11-10', win: 'Sep 2027' },
+    { label: 'R2', date: '2027-01-19', win: 'Sep 2027' },
+    { label: 'R3', date: '2027-03-02', win: 'Sep 2027' },
+    { label: 'R4', date: '2027-04-15', win: 'Sep 2027' },
+    { label: 'R5', date: '2027-06-08', win: 'Sep 2027' },
+  ],
+  'oxford-said': [
+    { label: 'Stage 1', date: '2026-09-02', win: null },
+    { label: 'Stage 2', date: '2026-10-05', win: null },
+    { label: 'Stage 3', date: '2026-11-04', win: null },
+    { label: 'Stage 4', date: '2027-01-06', win: null },
+    { label: 'Stage 5', date: '2027-03-15', win: null },
+  ],
+  'insead-gemba': [
+    { label: 'R1', date: '2027-02-23', win: null },
+    { label: 'R2', date: '2027-04-27', win: null },
+    { label: 'R3', date: '2027-06-29', win: null },
+    { label: 'Final', date: '2027-09-07', win: null },
+  ],
+  'iese-gemba': [
+    { label: 'R1', date: '2026-04-08', win: null }, { label: 'R2', date: '2026-05-12', win: null },
+    { label: 'R3', date: '2026-06-09', win: null }, { label: 'R4', date: '2026-07-15', win: null },
+    { label: 'R5', date: '2026-09-03', win: null }, { label: 'R6', date: '2026-10-07', win: null },
+    { label: 'R7', date: '2026-11-04', win: null }, { label: 'R8', date: '2026-12-02', win: null },
+  ],
+  'wharton-emba': [
+    { label: 'R1', date: '2026-10-19', win: null },
+    { label: 'R2', date: '2027-01-19', win: null },
+  ],
+  'columbia-lbs': [
+    { label: 'Late Fall',   date: '2026-10-14', win: null },
+    { label: 'Early Spring', date: '2027-01-12', win: null },
+    { label: 'Late Spring',  date: '2027-03-12', win: null },
+  ],
+  'kellogg-emba': [
+    { label: 'D1', date: '2026-08-12', win: null },
+    { label: 'D2 (last for Jan)', date: '2026-10-07', win: 'Jan 2027' },
+    { label: 'D3', date: '2027-04-07', win: 'Sep 2027' },
+    { label: 'D4 (last for Sep)', date: '2027-06-02', win: 'Sep 2027' },
+  ],
+  'imperial-emba': [
+    { label: 'R1', date: '2026-02-24', win: 'Jan 2027' }, { label: 'R2', date: '2026-04-28', win: 'Jan 2027' },
+    { label: 'R3', date: '2026-06-09', win: 'Jan 2027' }, { label: 'R4', date: '2026-07-14', win: 'Jan 2027' },
+    { label: 'R5', date: '2026-09-08', win: 'Jan 2027' }, { label: 'R6', date: '2026-10-13', win: 'Jan 2027' },
+  ],
+  'sda-bocconi': [
+    { label: 'Waiver R2',  date: '2026-09-30', win: null },
+    { label: 'Early bird', date: '2026-11-10', win: null },
+    { label: 'Waiver R3',  date: '2026-12-15', win: null },
+    { label: 'Final',      date: '2027-02-10', win: null },
+  ],
+};
+
+/* ---------------------------------------------------------------
+   Where a round date came from
+   ---------------------------------------------------------------
+   Three kinds of date live in `rounds`, and conflating them is how a
+   planning calendar quietly becomes fiction:
+
+   published  — read off the school's own 2027-cycle page. Trust it.
+   prior-year — the school has not published 2027 dates yet, so these
+                are last cycle's dates moved on 364 days (52 weeks,
+                which preserves the weekday — admissions deadlines sit
+                on the same weekday year to year far more reliably
+                than on the same date). Every one is flagged.
+   rolling    — the school genuinely has no deadline. These are not
+                deadlines at all but *apply-by* dates, derived from the
+                lead time the school itself recommends.
+
+   The app shows which of the three you are looking at, and every
+   non-published date carries a ~ so it can never be mistaken for one
+   the school actually gave you. --------------------------------- */
+
+/* Rolling admissions. `lead` is the months before the intake starts
+   that the school advises applying by — its own guidance where it
+   gives any, otherwise the point in its previous cycle where the door
+   actually shut. The app turns this into a real date per start
+   window, because "rolling" is not something you can put in a diary. */
+const ROLLING = {
+  'imd-emba': { lead: 6,
+    note: 'No deadline — assessed on a rolling basis. IMD advises starting the application at least six months before your intended start, and warns that classes fill in advance.' },
+  'hec-paris': { lead: 3,
+    note: 'Rolling, with a fresh intake most months. Each window opens about six weeks before it closes, and a decision follows three to four weeks later.' },
+  'escp-emba': { lead: 3,
+    note: 'Places allocated on a rolling basis, so early application matters more than any date. A reduced fee of €86,000 applied to the September 2026 intake if you applied before 17 August 2026.' },
+  'manchester-gemba': { lead: 2,
+    note: 'Rolling, with one hard final deadline roughly two months before the intake — it was 29 May 2026 for the July 2026 start.' },
+  /* TRIUM is rolling in character but does publish deadlines, and last
+     year's first one is already carried below. noteOnly keeps the
+     explanation without generating a second date on top of it. */
+  'trium': { lead: 10, noteOnly: true,
+    note: 'Three on-time deadlines, but applications are reviewed on a rolling basis throughout and scholarships are awarded from the first deadline onwards — so the first date is the one that matters.' },
+};
+
+/* Last cycle's calendar, moved on 364 days. Used only where the school
+   has not published 2027 dates. Sources are in the comment on each. */
+const PRIOR_YEAR_ROUNDS = {
+  // Booth published Oct 27 2025 / Jan 12 2026 / Apr 13 2026 / Jun 8 2026.
+  'booth-emba': [
+    { label: 'R1', date: '2026-10-26', win: null },
+    { label: 'R2', date: '2027-01-11', win: null },
+    { label: 'R3', date: '2027-04-12', win: null },
+    { label: 'R4 (final)', date: '2027-06-07', win: null },
+  ],
+  // LBS's final deadline for the September 2026 intake was 9 July 2026.
+  // Earlier stages are not published, so only the one that is known.
+  'lbs-emba': [
+    { label: 'Final', date: '2027-07-08', win: 'Sep 2027' },
+  ],
+  // TRIUM's first deadline for the Class of 2028 was 2 November 2025.
+  'trium': [
+    { label: 'R1', date: '2026-11-01', win: null },
+  ],
+  // MIT Sloan Fellows ran R1 20 Oct 2025 / R2 26 Jan 2026 for June entry.
+  'mit-sloan': [
+    { label: 'R1', date: '2026-10-19', win: null },
+    { label: 'R2', date: '2027-01-25', win: null },
+  ],
+  /* Cambridge has not published Global EMBA rounds, but it publishes the
+     Cambridge EMBA's five and runs both to the same shape — R1 ten months
+     out, then roughly 8, 6, 4.5 and 3 months before the start. Applied to
+     the Global EMBA's January start that gives the five below. Derived
+     from a sibling programme rather than from last year, so it is the
+     softest set here; ring Judge before you plan around it. */
+  'cambridge-global': [
+    { label: 'R1', date: '2026-03-10', win: null },
+    { label: 'R2', date: '2026-05-19', win: null },
+    { label: 'R3', date: '2026-07-02', win: null },
+    { label: 'R4', date: '2026-08-17', win: null },
+    { label: 'R5', date: '2026-10-08', win: null },
+  ],
 };
 
 const blankRank = () => ({ global: null, country: null, europe: null, joint: null });
+
+/* First of the month named by a start window: "Sep 2027" → 2027-09-01.
+   Windows the app cannot parse simply produce no rolling date, which is
+   the right failure — a made-up one would be worse than none. */
+const MONTH_NUM = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+function intakeStart(label) {
+  const m = String(label || '').match(/([A-Za-z]{3})[a-z]*\s+(\d{4})/);
+  const mo = m && MONTH_NUM[m[1].toLowerCase()];
+  return m && mo != null ? new Date(Date.UTC(Number(m[2]), mo, 1)) : null;
+}
+function minusMonths(d, months) {
+  const x = new Date(d.getTime());
+  x.setUTCMonth(x.getUTCMonth() - months);
+  return x.toISOString().slice(0, 10);
+}
+
+/* One apply-by date per start window for a rolling school. */
+function rollingRounds(id, intakeLabels) {
+  const r = ROLLING[id];
+  if (!r || r.noteOnly) return [];
+  return intakeLabels.map((label) => {
+    const start = intakeStart(label);
+    if (!start) return null;
+    return { label: 'Apply by', date: minusMonths(start, r.lead), win: label, est: true, rolling: true };
+  }).filter(Boolean);
+}
+
+/* published | prior-year | rolling — whichever best describes what the
+   dates on this school actually are. */
+function admissionsMode(id) {
+  // Named for where the dates on the card actually came from, so the order
+  // is strongest source first. TRIUM is the case that needs it: rolling in
+  // character, but the dates you see are last year's.
+  if (ROUNDS[id]) return 'published';
+  if (PRIOR_YEAR_ROUNDS[id]) return 'prior-year';
+  if (ROLLING[id]) return 'rolling';
+  return 'unknown';
+}
+
+/* Published dates win. Rolling schools get their apply-by dates, and a
+   rolling school that also publishes a round or two (TRIUM) gets both. */
+function roundsFor(id, intakeLabels) {
+  const out = (ROUNDS[id] || []).map((r) => ({ ...r }));
+  if (!ROUNDS[id]) {
+    (PRIOR_YEAR_ROUNDS[id] || []).forEach((r) => out.push({ ...r, est: true }));
+  }
+  rollingRounds(id, intakeLabels).forEach((r) => out.push(r));
+  return out.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
+/* Cadence for one start window. A school with a single format uses the
+   '*' entry; LBS is the case that needs per-window figures, and any
+   school can grow them later by keying on the window's own label. */
+function cadenceFor(id, label) {
+  const c = CADENCE[id];
+  if (!c) return null;
+  return { ...(c[label] || c['*'] || null) };
+}
 
 function buildSeed() {
   return {
@@ -463,15 +783,21 @@ function buildSeed() {
       ...s,
       notes: '',
       status: 'none',        // application pipeline stage
-      url: '',               // admissions page, for checking dates against
+      url: ADMISSIONS_URL[s.id] || '',
       schDeadline: null,     // scholarship deadline where it differs
       docs: [],              // essays and other documents
       country: COUNTRY[s.id] || '',
       rank: { ...blankRank(), ...(QS_RANKS[s.id] || {}) },
+      rounds: roundsFor(s.id, String(s.start).split(' / ').map((x) => x.trim())),
+      admissions: admissionsMode(s.id),
+      rollingNote: (ROLLING[s.id] || {}).note || '',
 
       // Start windows — programmes with two intakes get one entry per window,
-      // each of which can be switched off in the school card.
-      intakes: String(s.start).split(' / ').map((label) => ({ label, on: true, deadline: null })),
+      // each of which can be switched off in the school card. Cadence rides
+      // on the window because that is where it actually differs.
+      intakes: String(s.start).split(' / ').map((label) => ({
+        label, on: true, deadline: null, cadence: cadenceFor(s.id, label),
+      })),
       tasks: schoolTasks(s.deadline),
     })),
     steps: STEPS.map((s) => ({ ...s, tasks: s.tasks.map((x) => ({ ...x })) })),
