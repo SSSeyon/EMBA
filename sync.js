@@ -86,12 +86,34 @@ window.EmbaSync = {
     connected = false;
   },
 
+  /* Returns true only if the write actually reached Firestore. The caller
+     needs to know: an edit made with no connection has to be remembered
+     and pushed later, or the next snapshot to arrive would overwrite it. */
   async push(payload) {
-    if (!connected || !db) return;
+    if (!connected || !db) return false;
     try {
       await setDoc(doc(db, 'syncs', DOC_ID), payload);
+      return true;
     } catch (e) {
       console.error('Sync push failed', e);
+      return false;
+    }
+  },
+
+  /* Read the shared document once, on demand. This is the manual escape
+     hatch behind "Pull from cloud" — a device that has somehow got out of
+     step can ask for the truth rather than waiting for a change to it. */
+  async pull() {
+    if (!db) {
+      const ok = await ensureInit();
+      if (!ok) return null;
+    }
+    try {
+      const snap = await getDoc(doc(db, 'syncs', DOC_ID));
+      return snap.exists() ? snap.data() : null;
+    } catch (e) {
+      console.error('Sync pull failed', e);
+      return null;
     }
   },
 

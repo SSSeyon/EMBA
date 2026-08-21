@@ -1011,7 +1011,7 @@ const STORE_KEY = 'emba-tracker-v' + SEED_VERSION;
 /* App version — bump this and CACHE_VERSION in sw.js together whenever
    index.html / seed.js / sync.js change. Shown in the header; clicking it
    hard-refreshes (drops the service-worker caches and reloads). */
-const APP_VERSION = 'v1.20.0';
+const APP_VERSION = 'v1.21.0';
 
 /* ---------------- State ---------------- */
 let data = null;
@@ -1130,16 +1130,56 @@ function loadData() {
 
 let applyingRemote = false;
 
+/* ---------------- Who wrote what ----------------
+   Sync used to decide which copy of the tracker was newer by comparing
+   `updatedAt`, which is Date.now() on whichever device did the writing.
+   That works only if every device agrees what time it is. They do not: a
+   phone with the clock a few minutes fast stamps a timestamp none of the
+   others can beat, so from then on it rejects every genuine update while
+   still reporting "Synced" — schools you switched off reappear, dates stay
+   old, and nothing looks broken.
+
+   So no clocks. Each device gets a random id, each write gets a counter,
+   and the shared document is simply the truth: adopt anything that is not
+   the echo of our own last write. The one exception is an edit made while
+   offline, which has to be pushed rather than thrown away.
+
+   updatedAt is still written — snapshots and the backup file display it —
+   but nothing merges on it any more. */
+const DEVICE_KEY = 'emba-device-id';
+let deviceId = localStorage.getItem(DEVICE_KEY);
+if (!deviceId) {
+  deviceId = 'd' + Math.random().toString(36).slice(2, 10);
+  try { localStorage.setItem(DEVICE_KEY, deviceId); } catch (e) {}
+}
+
+// Identity of one particular write, so we can recognise our own echo and
+// skip snapshots that carry something we already have.
+const stampOf = (d) => `${(d && d.writer) || '?'}:${(d && d.rev) || 0}`;
+let lastApplied = '';
+
+// An edit that never reached Firestore. Until it does, remote data must
+// not overwrite it.
+let pendingLocal = false;
+
 function save() {
   if (!data) return;
   data.updatedAt = Date.now();
+  data.rev = (Number(data.rev) || 0) + 1;
+  data.writer = deviceId;
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
   } catch (e) {
     console.error('Save failed', e);
     toast('Could not save — browser storage is full or blocked');
   }
-  if (window.EmbaSync && !applyingRemote) window.EmbaSync.push(data);
+  if (window.EmbaSync && !applyingRemote) {
+    lastApplied = stampOf(data);
+    window.EmbaSync.push(data).then((ok) => {
+      pendingLocal = !ok;
+      if (!ok) setSyncStatus('pending');
+    });
+  }
 }
 
 /* Add anything new in seed.js (schools/steps/actions/funding you add later,
@@ -1438,8 +1478,14 @@ function rollRounds(d) {
 
 function setSyncStatus(kind) {
   const dot = $('#dot'), txt = $('#syncTxt');
+  // The listener reports "synced" on every snapshot, whether or not our own
+  // last edit got out. If it did not, that is the fact worth showing.
+  if (kind === 'synced' && pendingLocal) kind = 'pending';
   if (kind === 'synced')        { dot.className = 'dot';     txt.textContent = 'Synced'; }
   else if (kind === 'connecting') { dot.className = 'dot';   txt.textContent = 'Syncing…'; }
+  // An edit that has not reached the cloud is not "Synced", and saying so
+  // is the whole point — the old code claimed Synced regardless.
+  else if (kind === 'pending')  { dot.className = 'dot off'; txt.textContent = 'Not sent yet'; }
   else if (kind === 'error')    { dot.className = 'dot off'; txt.textContent = 'Sync error'; }
   else if (kind === 'unconfigured') { dot.className = 'dot off'; txt.textContent = 'Sync not set up'; }
   else                           { dot.className = 'dot';     txt.textContent = 'On this device'; }
@@ -1447,15 +1493,51 @@ function setSyncStatus(kind) {
 
 function handleRemote(remote) {
   if (!remote || applyingRemote) return;
-  if (!data || (remote.updatedAt || 0) > (data.updatedAt || 0)) {
-    applyingRemote = true;
-    data = remote;
-    if (migrate(data)) { /* saved locally below */ }
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
-    render();
-    applyingRemote = false;
+
+  const stamp = stampOf(remote);
+
+  // Already holding this exact write — our own echo, or a repeat snapshot.
+  if (stamp === lastApplied) return;
+
+  /* An edit we made with no connection has not reached anyone yet. Send it
+     rather than letting the document overwrite it; the push updates the
+     document, which comes back as our own echo and settles. */
+  if (pendingLocal && data) {
+    pendingLocal = false;
+    lastApplied = stampOf(data);
+    window.EmbaSync.push(data).then((ok) => { pendingLocal = !ok; });
+    return;
   }
+
+  applyingRemote = true;
+  data = remote;
+  migrate(data);
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
+  lastApplied = stamp;
+  render();
+  applyingRemote = false;
 }
+
+/* Take the cloud copy, whatever this device currently thinks. The escape
+   hatch for a device that has drifted: it does not wait for someone to
+   change something elsewhere, and it ignores every local heuristic. */
+window.__pull = async () => {
+  if (!window.EmbaSync || !window.EmbaSync.available()) { toast('Sync is not set up here'); return; }
+  toast('Fetching the cloud copy…');
+  const remote = await window.EmbaSync.pull();
+  if (!remote) { toast('Nothing in the cloud to pull'); return; }
+  if (pendingLocal && !confirm(
+    'This device has an edit that never reached the cloud. Pulling will discard it. Continue?')) return;
+  applyingRemote = true;
+  data = remote;
+  migrate(data);
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
+  lastApplied = stampOf(data);
+  pendingLocal = false;
+  render();
+  applyingRemote = false;
+  toast(`Pulled revision ${data.rev || 0} from the cloud`);
+};
 
 function waitForSync(cb, tries = 0) {
   if (window.EmbaSync) cb();
@@ -3154,6 +3236,14 @@ function renderSettings() {
       <button class="qabtn" onclick="__calendar()"><div class="ic">⤓</div><div class="lb">CALENDAR</div></button>
       <button class="qabtn" onclick="__backup()"><div class="ic">☁</div><div class="lb">BACK UP</div></button>
       <button class="qabtn" onclick="__restore()"><div class="ic">↺</div><div class="lb">RESTORE</div></button>
+      <button class="qabtn" onclick="__pull()"><div class="ic">⇩</div><div class="lb">PULL</div></button>
+    </div>
+    <div class="setnote" style="padding:0 0 14px">
+      This device is <b class="mono">${esc(deviceId)}</b>. It is holding
+      revision <b class="mono">${(data.rev || 0)}</b>, last written by
+      <b class="mono">${esc(data.writer || 'an older version')}</b>.
+      If another device shows a higher revision, tap <b>Pull</b> to take the
+      cloud copy.
     </div>
 
     <div class="set">
